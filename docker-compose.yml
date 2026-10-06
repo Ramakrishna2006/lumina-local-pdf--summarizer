@@ -1,0 +1,33 @@
+# docker compose up --build      then open http://localhost:5173
+# First run only:  docker compose exec ollama ollama pull llama3.2:3b
+#                  docker compose exec ollama ollama pull embeddinggemma
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports: ["11434:11434"]
+    volumes: ["ollama:/root/.ollama"]
+
+  backend:
+    build: .
+    depends_on: [ollama]
+    ports: ["5001:5001"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+    volumes: ["./storage:/app/storage"]
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    depends_on: [backend]
+    environment:
+      BACKEND_URL: http://backend:5001
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports: ["5173:5173"]
+    volumes: ["./frontend:/app", "/app/node_modules"]
+
+volumes:
+  ollama:
