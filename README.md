@@ -6,7 +6,7 @@
 
 ### Chat with your documents — privately, on your own computer.
 
-Upload PDFs, Word files, slide decks, spreadsheets, code or photos of pages. Ask questions and get **streaming answers with the exact passages they came from**, or generate summaries, study notes, quizzes and glossaries. Everything runs locally through [Ollama](https://ollama.com) (or any OpenAI-compatible local server). **No cloud account, no API key, no document ever leaves your machine.**
+Upload PDFs, Word files, slide decks, spreadsheets, code or photos of pages. Ask questions and get **streaming answers with the exact passages they came from**, generate summaries, study notes, quizzes and glossaries, or **paint an image from a text description**. Everything runs locally through [Ollama](https://ollama.com) (or any OpenAI-compatible local server). **No cloud account, no API key, no document ever leaves your machine.**
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-4f46e5?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-backend-111113?style=flat-square&logo=fastapi&logoColor=white)
@@ -29,6 +29,8 @@ Upload PDFs, Word files, slide decks, spreadsheets, code or photos of pages. Ask
 - [Requirements](#requirements)
 - [Installation (step by step)](#installation-step-by-step)
 - [Running the app](#running-the-app)
+- [The interface](#the-interface)
+- [Image generation – step by step](#image-generation--step-by-step)
 - [How to use it](#how-to-use-it)
 - [Configuration](#configuration)
 - [Use LM Studio, llama.cpp or another server instead of Ollama](#use-lm-studio-llamacpp-or-another-server-instead-of-ollama)
@@ -69,6 +71,8 @@ Upload PDFs, Word files, slide decks, spreadsheets, code or photos of pages. Ask
 - Model pre-loaded at start-up, pooled connections, in-RAM search indexes, the question is embedded *while* indexes load, parallel OCR – see [Why it is fast](docs/architecture.md#why-it-is-fast).
 
 **Interface**
+- 🧭 **Three modes in the message box** – **Documents** (answers from your files), **Web** (cited web research) and **Image** (pictures from a description).
+- 🔒 **Optional access password** – set `ACCESS_PASSWORD` and every visitor sees a lock screen first (for sharing Lumina on the internet).
 - 🎨 **Clean chat interface** – white and black with one indigo accent, a centred conversation, serif answers that flow onto the screen smoothly (new paragraphs fade in), an animated Lumina mark while it thinks, collapsible sidebar, light and dark themes, and an *Animations* switch in ⚙ Settings.
 - 🌗 Dark and light themes, drag-and-drop upload with progress, chat history (rename, search, export to Markdown), keyboard shortcuts, works on phones.
 
@@ -84,6 +88,10 @@ Upload PDFs, Word files, slide decks, spreadsheets, code or photos of pages. Ask
 | ![Welcome screen](docs/images/welcome.png) | ![Answer in dark mode](docs/images/chat-dark.png) |
 | **Summaries & study tools** | **Light theme** |
 | ![Summary drawer](docs/images/summary.png) | ![Light theme](docs/images/chat-light.png) |
+| **Image mode** | **Painting an image** |
+| ![Image mode with example prompts](docs/images/image-mode.png) | ![Lumina painting an image](docs/images/image-painting.png) |
+| **Password lock screen** (optional) | |
+| ![Access password screen](docs/images/lock-screen.png) | |
 
 <p align="center"><img src="docs/images/mobile.png" width="260" alt="Mobile layout" /></p>
 
@@ -102,9 +110,12 @@ Upload PDFs, Word files, slide decks, spreadsheets, code or photos of pages. Ask
  Ollama  (port 11434)            – or LM Studio / llama.cpp / vLLM
    • chat model       e.g. llama3.2:3b
    • embedding model  e.g. embeddinggemma
+
+ Image mode (optional) – runs inside the backend, no Ollama needed
+   prompt ──► SD-Turbo (PyTorch + diffusers) ──► TAESD fast decoder ──► storage/images/<id>.png
 ```
 
-When you ask a question, Lumina finds the most relevant passages with **hybrid search** (80 % meaning-based vector similarity + 20 % keyword BM25), sends only those passages to the local model and streams the answer back. This is called **RAG – Retrieval-Augmented Generation**. More detail: [docs/architecture.md](docs/architecture.md).
+When you ask a question, Lumina finds the most relevant passages with **hybrid search** (80 % meaning-based vector similarity + 20 % keyword BM25), sends only those passages to the local model and streams the answer back. This is called **RAG – Retrieval-Augmented Generation**. In **Image** mode the backend instead sends your description to a small Stable Diffusion model (SD-Turbo) on your own computer and saves the picture as a PNG. More detail: [docs/architecture.md](docs/architecture.md).
 
 ## Tech stack and libraries
 
@@ -113,7 +124,7 @@ When you ask a question, Lumina finds the most relevant passages with **hybrid s
 | **Frontend** | [React 19](https://react.dev) | user interface |
 | | [Vite 7](https://vite.dev) | dev server, production build, `/api` proxy |
 | | [Fontsource](https://fontsource.org) (Inter, Source Serif 4, JetBrains Mono) | fonts bundled locally – no Google Fonts request |
-| | CSS animations | animated background, buttons and messages (no animation library) |
+| | CSS animations | the breathing Lumina mark, shimmer and fade-ins (no animation library) |
 | **Backend** | [FastAPI](https://fastapi.tiangolo.com) + [Uvicorn](https://www.uvicorn.org) | REST API and streaming (Server-Sent Events) |
 | | [SQLAlchemy 2](https://www.sqlalchemy.org) + SQLite | documents, chunks and chats |
 | | [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) | configuration from `.env` |
@@ -126,6 +137,9 @@ When you ask a question, Lumina finds the most relevant passages with **hybrid s
 | | [Beautiful Soup 4](https://www.crummy.com/software/BeautifulSoup/) | HTML |
 | | [pytesseract](https://github.com/madmaze/pytesseract) + [Pillow](https://python-pillow.org) + [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) | reading scanned pages and images |
 | **AI** | [Ollama](https://ollama.com) | runs the chat model and the embedding model locally |
+| **Images** (optional) | [PyTorch](https://pytorch.org) | runs the image model on the CPU or GPU |
+| | [diffusers](https://huggingface.co/docs/diffusers) + [transformers](https://huggingface.co/docs/transformers) + [accelerate](https://huggingface.co/docs/accelerate) | load and run Stable Diffusion **SD-Turbo** (1 drawing step) |
+| | [TAESD](https://huggingface.co/madebyollin/taesd) | tiny image decoder – much faster on a CPU |
 | **Dev** | pytest, ruff, pip-audit, ESLint, GitHub Actions | tests, linting, security audit, CI |
 
 ## Requirements
@@ -282,36 +296,143 @@ The backend now also serves the interface at **http://127.0.0.1:5001**.
 
 The link works only while your PC, Ollama, the backend and the tunnel are running. Stop sharing with **Ctrl + C**.
 
-## Image generation (optional)
+## The interface
 
-Click **Image** in the message box, describe a picture and press Enter. Images are made on your computer and saved in `storage/images/`.
-
-**1. Install the extra libraries** (only once; PyTorch and the model are a few GB):
-```powershell
-.\.venv\Scripts\Activate.ps1
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-pip install -r backend\requirements-image.txt
+```text
+┌──────────────┬──────────────────────────────────────────────────────────────┐
+│ ✦ Lumina     │  New chat                 [📄 2 documents] [✦ llama3.2:3b] ☾ ⚙ │
+│ + New chat   │                                                              │
+│              │        You:  Explain photosynthesis and its two stages      │
+│ Library      │   ✦  Photosynthesis turns light energy into …  [1] [2]       │
+│ ☑ Biology.pdf│      ▸ 5 passages · Biology.pdf                              │
+│ ☑ Notes.docx │      ⧉  ↻  ⤓  Quiz me     First words 4 s · done in 21 s     │
+│ + Add files  │                                                              │
+│              │  ┌────────────────────────────────────────────────────────┐ │
+│ Recents      │  │ Ask anything about these 2 documents                    │ │
+│ 🔍 Search…   │  │ (+)  [📄 Documents | 🌐 Web | 🖼 Image]   Balanced ▾  (↑) │ │
+│              │  └────────────────────────────────────────────────────────┘ │
+│ ● Local AI   │   Lumina runs on your computer · your documents never leave  │
+└──────────────┴──────────────────────────────────────────────────────────────┘
 ```
-Have an NVIDIA graphics card? Install the CUDA build of PyTorch from [pytorch.org](https://pytorch.org/get-started/locally/) instead of the first line – images become much faster.
 
-**2. Restart the backend.** The first start downloads the model (`stabilityai/sd-turbo` plus a tiny fast decoder, about 2–3 GB, internet needed once). Lumina then **loads the model in the background at start-up**, so it is ready before you ask. After that every image is made offline.
+| Part | What it does |
+|---|---|
+| **Sidebar** | *New chat*, your **Library** of files (tick the ones to use), **Recents** (search, rename, delete chats) and the status of the local AI (green = ready). The panel icon hides it. |
+| **Top bar** | the documents in use (click for summaries), the **AI model** menu, light/dark theme and ⚙ Settings (answer language, animations). |
+| **Message box** | type and press **Enter**. **+** adds files. The three buttons choose the mode: **Documents** – answers from your ticked files · **Web** – cited answer from public websites · **Image** – paints a picture from your description. The style menu (Balanced, Concise, Table…) appears in Documents mode. |
+| **Answers** | stream in word by word. Under each answer: source passages, copy, regenerate, download chat, *Quiz me*, and timing. |
+| **Images** | appear in the chat with their size, time and model, plus **Download** (PNG) and **Another version**. |
+| **Lock screen** | only when `ACCESS_PASSWORD` is set – visitors must enter the password first (it is remembered for 30 days). |
 
-**Making it faster on a slow PC**
-- `IMAGE_SIZE=256` – about 2× faster than the default 384 (512 gives the best detail but is slowest).
-- `IMAGE_FAST_DECODER=true` (default) – uses the tiny TAESD decoder, which is much faster on a CPU.
-- Close other heavy programs; an NVIDIA GPU with the CUDA build of PyTorch is by far the biggest speed-up.
+## Image generation – step by step
 
-**Don't want images at all?** Put `IMAGE_PROVIDER=off` in `.env` and restart – the Image button disappears and nothing is loaded. You can also uninstall the extra libraries: `pip uninstall torch diffusers transformers accelerate`.
+Lumina can paint pictures **on your own computer** with **SD-Turbo**, a small Stable Diffusion model that draws a picture in a single step, so it is practical on an ordinary laptop. It is **optional**: Lumina works without it, and you can switch it off with one line.
 
-**Settings** (in `.env`):
+> Why not Ollama? Ollama's own image models currently run only on macOS (on Windows they stop with *"requires MLX support"*). Lumina therefore runs the image model itself, which works on Windows, Linux and macOS.
+
+### Step 1 – Open the project and activate the virtual environment
+
+```powershell
+cd C:\path\to\lumina
+.\.venv\Scripts\Activate.ps1          # macOS/Linux: source .venv/bin/activate
+```
+The prompt must start with `(.venv)` and end in your `lumina` folder – not another project.
+
+### Step 2 – Install PyTorch (CPU version, about 125 MB)
+
+```powershell
+python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
+Have an **NVIDIA graphics card**? Install the CUDA build from [pytorch.org](https://pytorch.org/get-started/locally/) instead – images become many times faster.
+
+### Step 3 – Install the image libraries
+
+```powershell
+python -m pip install -r backend\requirements-image.txt
+```
+
+### Step 4 – Check the installation
+
+```powershell
+python -c "import torch, diffusers; print('image libraries OK')"
+```
+It must print **image libraries OK**. If it says `No module named 'torch'`, the wrong environment is active – repeat Step 1.
+
+### Step 5 – Check the settings in `.env`
+
+These lines turn Image mode on with the fast settings (they are also in [`.env.example`](.env.example)):
+
+```env
+IMAGE_PROVIDER=local
+IMAGE_SIZE=384
+IMAGE_FAST_DECODER=true
+IMAGE_PRELOAD=true
+```
+
+### Step 6 – Start Lumina and wait for the model
+
+```powershell
+python -m uvicorn backend.app.main:app --port 5001
+```
+The **first start downloads** the model (`stabilityai/sd-turbo` + the tiny TAESD decoder, about 2–3 GB, internet needed once). Lumina loads it **in the background**; wait until the log shows:
+
+```text
+Image model ready in … s
+```
+On later starts nothing is downloaded and loading takes about half a minute.
+
+### Step 7 – Make your first image
+
+1. Open **http://127.0.0.1:5001** (or **http://127.0.0.1:5173** if you also run `npm run dev`).
+2. Click **Image** in the message box.
+3. Describe the picture – e.g. *A watercolor lighthouse on a cliff at sunset* – or click an example.
+4. Press **Enter**. *Painting your image* shows a seconds counter.
+5. The picture appears with its size and time. Click it to open it full size.
+
+### Step 8 – Save it or try again
+
+- **Download** saves the PNG (all images are also kept in `storage/images/`).
+- **Another version** paints the same description again with a new random seed.
+- **Copy** copies the prompt.
+
+### Faster images on a slow PC
+
+| Change in `.env` | Effect |
+|---|---|
+| `IMAGE_SIZE=256` | about 2× faster than 384 (less detail) |
+| `IMAGE_SIZE=512` | best detail, slowest |
+| `IMAGE_FAST_DECODER=true` | tiny decoder – much faster on a CPU (default) |
+| `IMAGE_PRELOAD=true` | model loads at start-up, so the first image does not wait for it (default) |
+
+Close other heavy programs while painting. The biggest speed-up by far is an NVIDIA GPU.
+
+### Turn Image mode off or remove it
+
+1. Set `IMAGE_PROVIDER=off` in `.env` and restart – the **Image** button disappears and nothing is loaded.
+2. Optional, to free the disk space: `python -m pip uninstall -y torch diffusers transformers accelerate`.
+
+### All image settings
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `IMAGE_PROVIDER` | `local` | `local` = Stable Diffusion on this PC · `openai` = an OpenAI-compatible image server · `off` = Image button removed |
-| `IMAGE_MODEL` | `stabilityai/sd-turbo` | Any Hugging Face text-to-image model that `diffusers` can load |
-| `IMAGE_SIZE` / `IMAGE_STEPS` | `384` / `1` | Image size in pixels (256–1024) and drawing steps (SD-Turbo needs only 1) |
-| `IMAGE_FAST_DECODER` / `IMAGE_PRELOAD` | `true` / `true` | Tiny fast decoder · load the model in the background at start-up |
-| `IMAGE_API_BASE_URL` / `IMAGE_API_MODEL` | Ollama / `x/z-image-turbo` | Used only with `IMAGE_PROVIDER=openai` |
+| `IMAGE_PROVIDER` | `local` | `local` = SD-Turbo on this PC · `openai` = an OpenAI-compatible image server (e.g. Ollama image models on macOS) · `off` = Image button removed |
+| `IMAGE_MODEL` | `stabilityai/sd-turbo` | any Hugging Face text-to-image model that `diffusers` can load |
+| `IMAGE_SIZE` / `IMAGE_STEPS` | `384` / `1` | size in pixels (256–1024) and drawing steps (SD-Turbo needs 1) |
+| `IMAGE_FAST_DECODER` / `IMAGE_PRELOAD` | `true` / `true` | tiny fast decoder · load the model at start-up |
+| `IMAGE_THREADS` | `0` | CPU threads for images (0 = all) |
+| `IMAGE_DIR` | `storage/images` | where PNG files are saved (git-ignored) |
+| `IMAGE_API_BASE_URL` / `IMAGE_API_MODEL` | Ollama / `x/z-image-turbo` | only for `IMAGE_PROVIDER=openai` |
+
+### Image troubleshooting
+
+| Problem | Fix |
+|---|---|
+| *"Image generation needs extra libraries"* | The backend runs in an environment without PyTorch. Stop it, do Step 1 again, check with Step 4, restart. |
+| `No module named 'backend'` | You are in the wrong folder – `cd` into `lumina` first. |
+| `address already in use` (port 5001) | Lumina is already running in another terminal tab – use it or close it. |
+| The first image takes many minutes | It is downloading/loading the model. Wait for `Image model ready` in the log, then try again. |
+| Every image is slow | Use `IMAGE_SIZE=256`, close other programs, or use an NVIDIA GPU. |
+| `ollama run x/flux2-klein` → *requires MLX support* | Ollama image models only work on macOS – use Lumina's Image mode instead. |
 
 SD-Turbo is released by Stability AI under its own licence – free for personal and research use; read [stability.ai/license](https://stability.ai/license) before using images commercially.
 
@@ -324,6 +445,8 @@ SD-Turbo is released by Stability AI under its own licence – free for personal
 5. **Summaries & study tools** – click the eye icon on a file (or *Summary*), choose Overview, TL;DR, Study notes, Quiz, Key terms, Action items or FAQ, then *Write summary*.
 6. **Settings (⚙)** – answer language, default style, background animation on/off, light/dark theme.
 7. **Web mode** – switch the input to *Web* to research public sources.
+8. **Image mode** – switch the input to *Image*, describe a picture and press Enter (see [Image generation – step by step](#image-generation--step-by-step)).
+9. **Password** – if `ACCESS_PASSWORD` is set, enter it on the lock screen once per browser.
 
 | Shortcut | Action |
 |---|---|
@@ -356,6 +479,8 @@ All settings live in `.env` (copied from [`.env.example`](.env.example), which d
 | `WEB_RESEARCH_ENABLED` | `true` | turn Web mode on or off |
 | `GOOGLE_API_KEY`, `GOOGLE_CSE_ID` | empty | optional Google Programmable Search |
 | `MAX_FILE_SIZE_MB` | `25` | upload size limit |
+| `ACCESS_PASSWORD` | empty | password lock screen for sharing on the internet (empty = no password) |
+| `IMAGE_PROVIDER` / `IMAGE_SIZE` | `local` / `384` | Image mode – see [all image settings](#all-image-settings) |
 
 After changing the chunk size or embedding model, rebuild the search index:
 
@@ -398,6 +523,10 @@ Interactive docs at http://127.0.0.1:5001/docs.
 | POST | `/api/chats/{id}/messages/stream` | ask in a chat (`question`, `style`, `language`, `model`, `regenerate`) |
 | GET | `/api/chats/{id}/export` | export a chat as Markdown |
 | POST | `/api/research/stream` | web research answer |
+| GET | `/api/images/status` | is Image mode on, are the libraries installed, is the model loaded |
+| POST | `/api/images/generate` | paint an image (`prompt`, optional `size`, `steps`, `seed`) |
+| GET | `/api/images/{id}` | the PNG file |
+| GET / POST | `/api/auth/status`, `/api/auth/login`, `/api/auth/logout` | access password (only when `ACCESS_PASSWORD` is set) |
 
 ## Project structure
 
@@ -417,15 +546,17 @@ lumina/
 │   │       ├── suggest.py       # instant suggested questions (key terms)
 │   │       ├── summary.py       # streaming summaries, quiz, glossary, FAQ
 │   │       ├── chat.py          # chat sessions and history
+│   │       ├── image_gen.py     # Image mode: SD-Turbo (local) or OpenAI-compatible image server
 │   │       └── web_research.py  # public web research
 │   ├── tests/                   # pytest suite with a fake Ollama
 │   ├── requirements.txt
-│   └── requirements-dev.txt
+│   ├── requirements-dev.txt
+│   └── requirements-image.txt   # optional: PyTorch + diffusers for Image mode
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx              # app state, streaming, settings
 │   │   ├── api.js               # fetch, upload progress, SSE reader
-│   │   ├── components/          # Backdrop (animation), Sidebar, Message, Composer, DocDrawer…
+│   │   ├── components/          # Sidebar, Message, Composer (Documents/Web/Image), Gate (lock screen), DocDrawer…
 │   │   └── styles.css           # white/black + indigo theme, light + dark
 │   ├── public/favicon.svg
 │   ├── index.html
@@ -445,7 +576,8 @@ lumina/
 - Only **Web mode** contacts the internet, and it sends your question – not your files. Turn it off with `WEB_RESEARCH_ENABLED=false`.
 - Fonts are bundled with the app, so the interface makes no requests to Google or other CDNs.
 - Run `python scripts/secret_scan.py` before every push – it fails if it finds an API key in the code.
-- Built for **one trusted local user**. Add authentication before exposing it on a network.
+- **Image mode** runs entirely on your computer; pictures are saved in `storage/images/` (git-ignored). Only the first start downloads the model from Hugging Face.
+- Built for **one trusted local user**. Before sharing it on a network or the internet, set `ACCESS_PASSWORD` in `.env` – every visitor then sees a lock screen.
 
 Details: [docs/security.md](docs/security.md).
 
@@ -468,12 +600,14 @@ Details: [docs/security.md](docs/security.md).
 | Answers are slow | On a CPU-only laptop pick a smaller model in ⚙ Settings: `ollama pull llama3.2:1b` or `ollama pull qwen2.5:1.5b` (2–3× faster than 3B). Use the *Concise* style, set `RAG_MAX_CONTEXT_CHARS=3500` and `LLM_NUM_CTX=3072`, and close other heavy apps. |
 | "The AI model did not answer within … seconds" / "Local Ollama streaming request failed" | Your PC was busy. Update to v6.1 (questions are queued so waiting no longer times out), use a smaller model, or raise `LLM_TIMEOUT` in `.env`. Check the model works with `ollama run llama3.2:3b "hi"`. |
 | `ModuleNotFoundError` | Activate the virtual environment and run `pip install -r backend/requirements.txt` again. |
+| `Fatal error in launcher` (pip, pytest) | The `.venv` was copied from another folder. Delete it and create it again (`python -m venv .venv`), or run tools as `python -m pip …`. |
+| Image mode problems | See [Image troubleshooting](#image-troubleshooting). |
 
 ## Development and tests
 
 ```bash
 pip install -r backend/requirements-dev.txt
-pytest backend/tests -q                                  # fake Ollama – no model needed, ~2 s
+pytest backend/tests -q                                  # 38 tests · fake Ollama + fake image model – no downloads
 ruff check backend --select E,F,W,B --ignore E501,B008   # lint
 python scripts/secret_scan.py                            # before every push
 

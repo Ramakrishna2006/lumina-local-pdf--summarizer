@@ -24,5 +24,13 @@
 * **Secrets** (`OPENAI_API_KEY`, `GOOGLE_API_KEY` …) belong in `.env`, which is
   git-ignored together with `storage/`. Run `python scripts/secret_scan.py`
   before pushing – it fails if a key is found in the code.
-* This build is meant for **one trusted local user**. Add authentication before
-  exposing it on a network.
+* **Image mode** runs on your computer. Prompts are not sent anywhere; the
+  model is downloaded once from Hugging Face. Images are saved in
+  `storage/images/` (git-ignored) under random names, and the image route only
+  accepts those 32-character ids, so it cannot be used to read other files.
+* **Access password.** This build is meant for **one trusted local user**.
+  Before sharing it on a network or the internet (for example with a Cloudflare
+  Tunnel), set `ACCESS_PASSWORD` in `.env`: every `/api` route then needs a
+  login cookie (an HMAC of the password, HttpOnly, 30 days), wrong passwords are
+  slowed down, and visitors see a lock screen. Use a long password and keep it
+  only in `.env`.

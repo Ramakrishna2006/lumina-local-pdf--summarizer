@@ -14,6 +14,12 @@
  Ollama (port 11434)              or any OpenAI-compatible server
    • chat model       e.g. llama3.2:3b      (LM Studio, llama.cpp, vLLM …)
    • embedding model  e.g. embeddinggemma
+
+ Image mode (optional, inside the backend – Ollama is not used)
+   POST /api/images/generate
+        │  one image at a time (asyncio lock), in a worker thread
+        ▼
+   SD-Turbo text encoder ─► UNet (1 step) ─► TAESD tiny decoder ─► storage/images/<id>.png
 ```
 
 With `npm run build`, the backend also serves the built interface from
@@ -94,3 +100,37 @@ the words that arrive from the model in bursts are shown at an even pace
 or table row fades and rises in (`@keyframes blockIn`). Everything respects
 the operating system's *reduce motion* setting and the *Animations* switch
 in ⚙ Settings (`data-motion="off"`).
+
+## Image mode
+
+`backend/app/services/image_gen.py` turns a text prompt into a PNG.
+
+1. **Provider** – `IMAGE_PROVIDER=local` runs **SD-Turbo** with Hugging Face
+   `diffusers` on this PC; `openai` calls any `/v1/images/generations` server
+   (for example Ollama's image models, which today only run on macOS); `off`
+   refuses requests and the interface hides the **Image** button.
+2. **Optional libraries** – PyTorch, diffusers, transformers and accelerate are
+   *not* in `requirements.txt`. If they are missing, `/api/images/status`
+   reports them and a request returns a clear "install these" message instead
+   of crashing.
+3. **Loading** – the pipeline is loaded once and kept in memory. With
+   `IMAGE_PRELOAD=true` this happens in the background at start-up, so the
+   first request does not wait. The half-size `fp16` files are downloaded and
+   converted to float32 on a CPU.
+4. **Speed on a CPU**
+   * SD-Turbo needs only **1 drawing step** (`IMAGE_STEPS=1`, no guidance).
+   * The normal image decoder (VAE) is replaced by **TAESD**, a tiny decoder
+     that is many times faster on a CPU (`IMAGE_FAST_DECODER=true`).
+   * Default size **384 × 384** (`IMAGE_SIZE`; 256 is about twice as fast).
+   * One image at a time, so it never competes with itself for the CPU.
+5. **Saving** – the image is saved as `storage/images/<random id>.png` and
+   served by `GET /api/images/{id}`; the id must be 32 hex characters, so
+   no other file can be read through this route.
+
+## Access password (optional)
+
+When `ACCESS_PASSWORD` is set, a middleware blocks every `/api` route (and the
+API docs) until the browser has logged in at `/api/auth/login`. The login sets
+an HttpOnly cookie that holds an HMAC of the password – never the password
+itself – for 30 days. Wrong passwords wait one second to slow down guessing.
+The interface shows a lock screen (`components/Gate.jsx`) until then.

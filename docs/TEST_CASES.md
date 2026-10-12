@@ -18,7 +18,7 @@ pip install -r backend\requirements-dev.txt
 pytest backend\tests -q
 ```
 
-Expected: `38 passed`. The tests use a fake Ollama server, so they run without a model. They cover:
+Expected: `38 passed`. The tests use a fake Ollama server and a fake image painter, so they run without any model. They cover:
 
 | Area | What is tested |
 |---|---|
@@ -26,6 +26,8 @@ Expected: `38 passed`. The tests use a fake Ollama server, so they run without a
 | Search | hybrid search, keyword fallback when the embedding model is missing, plural/verb forms ("firewalls" finds "firewall"), keeping only the relevant sentences, "summarize" questions using the whole document |
 | Answers | streaming, multi-document chats, follow-up memory, regenerate, answer styles, languages, word limits only when asked, answer cache |
 | Speed | the model queue (questions before background work), background indexing pauses during answers, speed planning keeps full answer length, optional time limit |
+| Images | painting and downloading a PNG, size rounding, missing libraries → clear message, unsafe ids rejected, `IMAGE_PROVIDER=off`, OpenAI-compatible image servers, background preload |
+| Access | password lock: blocked without login, wrong password refused, cookie never contains the password, logout |
 | Other | summaries and download, instant suggested questions (no AI call), web research, OpenAI-compatible servers |
 
 ---
