@@ -1,0 +1,30 @@
+# Render Blueprint – https://render.com/docs/blueprint-spec
+# Render builds the Dockerfile (React UI + FastAPI on one port).
+# Secrets (sync: false) are typed in the Render dashboard, never committed.
+services:
+  - type: web
+    name: lumina
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/ping
+    autoDeploy: true
+    envVars:
+      - key: LLM_PROVIDER
+        value: openai                  # Render cannot run Ollama – use a hosted AI
+      - key: OPENAI_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: OPENAI_MODEL
+        value: llama-3.1-8b-instant
+      - key: OPENAI_API_KEY
+        sync: false                    # paste your key in the dashboard
+      - key: ACCESS_PASSWORD
+        sync: false                    # strongly recommended on a public URL
+      - key: OPENAI_EMBEDDING_MODEL
+        value: ""                      # empty = keyword search (no embedding API needed)
+      - key: IMAGE_PROVIDER
+        value: "off"                   # local image models are too heavy for Render
+      - key: LLM_WARMUP_ON_STARTUP
+        value: "false"
+      - key: LLM_MAX_PARALLEL
+        value: "2"

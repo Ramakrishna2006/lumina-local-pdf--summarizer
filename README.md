@@ -34,6 +34,7 @@ Upload PDFs, Word files, slide decks, spreadsheets, code or photos of pages. Ask
 - [How to use it](#how-to-use-it)
 - [Configuration](#configuration)
 - [Use LM Studio, llama.cpp or another server instead of Ollama](#use-lm-studio-llamacpp-or-another-server-instead-of-ollama)
+- [Deploy online (Render)](#deploy-online-render)
 - [API overview](#api-overview)
 - [Project structure](#project-structure)
 - [Privacy and security](#privacy-and-security)
@@ -504,12 +505,25 @@ OPENAI_API_KEY=                               # empty for local servers
 
 > ⚠️ If you point this at a hosted API, the passages sent with each question leave your computer. Keep any real key **only in `.env`** – never in code.
 
+## Deploy online (Render)
+
+Lumina can also run as a website on [Render](https://render.com). The repo includes a
+`Dockerfile` (UI + backend on one port), `render.yaml`, a root `requirements.txt` and
+`.python-version`. Render cannot run Ollama, so the hosted copy uses an online AI
+(`LLM_PROVIDER=openai` + an API key typed only in Render's dashboard), has image mode
+off and should be protected with `ACCESS_PASSWORD`.
+
+Full steps: **[docs/deploy-render.md](docs/deploy-render.md)**
+
+---
+
 ## API overview
 
 Interactive docs at http://127.0.0.1:5001/docs.
 
 | Method | Endpoint | Purpose |
 |---|---|---|
+| GET | `/api/ping` | Liveness check for hosts (open even with a password) |
 | GET | `/api/health` | backend, LLM and cache status |
 | GET | `/api/config` | answer styles, summary types, languages |
 | GET | `/api/models` | installed chat models |

@@ -132,7 +132,7 @@ app.add_middleware(GZipMiddleware, minimum_size=2048)
 # ============================================================
 
 ACCESS_COOKIE = "lumina_access"
-_OPEN_PATHS = {"/api/auth/status", "/api/auth/login", "/api/auth/logout"}
+_OPEN_PATHS = {"/api/ping", "/api/auth/status", "/api/auth/login", "/api/auth/logout"}
 
 
 def _access_token() -> str:
@@ -437,6 +437,12 @@ async def stream_answer(
 @app.get("/api")
 def api_root():
     return {"name": s.app_name, "version": s.app_version, "status": "running", "docs": "/docs"}
+
+
+@app.get("/api/ping")
+async def ping():
+    """Tiny liveness check for hosts (Render, Docker). Open even with ACCESS_PASSWORD; reveals nothing."""
+    return {"status": "ok"}
 
 
 @app.get("/api/health")

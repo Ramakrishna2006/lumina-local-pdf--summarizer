@@ -1,0 +1,18 @@
+# Keep secrets, local data and heavy folders out of the Docker image
+.env
+.env.*
+!.env.example
+.git
+.github
+.venv
+venv
+**/__pycache__
+**/*.pyc
+.ruff_cache
+.pytest_cache
+frontend/node_modules
+frontend/dist
+storage
+docs
+*.exe
+*.zip

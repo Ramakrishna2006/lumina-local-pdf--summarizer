@@ -320,6 +320,7 @@ def test_access_password(client, monkeypatch):
     assert client.get("/api/auth/status").json() == {"required": True, "ok": False}
     assert client.get("/api/documents").status_code == 401
     assert client.get("/api/health").status_code == 401
+    assert client.get("/api/ping").json() == {"status": "ok"}  # host health check stays open
     assert client.post("/api/auth/login", json={"password": "wrong"}).status_code == 401
 
     r = client.post("/api/auth/login", json={"password": "s3cret-pass"})

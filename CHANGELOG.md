@@ -2,6 +2,15 @@
 
 All notable changes to Lumina. Newest first.
 
+## 7.1.1 – Deploy on Render
+
+**Added**
+- Render deployment: multi-stage `Dockerfile` (builds the React UI, then the backend; UI + API on one port), `.dockerignore`, `render.yaml` Blueprint, root `requirements.txt`, `.python-version` (3.12) and the guide [docs/deploy-render.md](docs/deploy-render.md).
+- `GET /api/ping` – tiny health check that stays open when `ACCESS_PASSWORD` is set.
+
+**Removed**
+- `frontend/vercel.json` (Vercel is no longer used).
+
 ## 7.1.0 – Image mode and access password
 
 **Added**
