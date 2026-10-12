@@ -150,6 +150,7 @@ When you ask a question, Lumina finds the most relevant passages with **hybrid s
 | **Node.js** | 20 or newer (includes npm) | https://nodejs.org (LTS) |
 | **Ollama** | latest | https://ollama.com/download |
 | **Git** | any | https://git-scm.com/downloads |
+| Image mode *(optional)* | PyTorch + diffusers, about **3 GB** disk and **8 GB RAM** | see [Image generation – step by step](#image-generation--step-by-step) · an NVIDIA GPU makes it much faster |
 | Tesseract OCR *(optional)* | 5.x – only for scanned PDFs / images | Windows: [UB-Mannheim installer](https://github.com/UB-Mannheim/tesseract/wiki) · macOS: `brew install tesseract` · Ubuntu/Debian: `sudo apt install tesseract-ocr` |
 
 **Hardware:** 8 GB RAM is enough for `llama3.2:3b` (about 2 GB). A GPU makes answers much faster but is not required. Disk: ~3 GB for the models.
@@ -188,7 +189,7 @@ bash scripts/setup.sh
 bash scripts/start.sh
 ```
 
-The setup script creates the Python virtual environment, installs all Python and npm packages, creates your `.env` and downloads the two AI models. The start script launches the backend and frontend; open **http://127.0.0.1:5173**.
+The setup script creates the Python virtual environment, installs all Python and npm packages, creates your `.env` and downloads the two AI models. Add `-WithImages` (Windows) or `--with-images` (macOS/Linux) to also install the optional Image mode libraries. The start script launches the backend and frontend; open **http://127.0.0.1:5173**.
 
 ### Option B – manual setup (any OS)
 
@@ -249,7 +250,7 @@ docker compose exec ollama ollama pull llama3.2:3b
 docker compose exec ollama ollama pull embeddinggemma
 ```
 
-Then open http://localhost:5173.
+Then open http://localhost:5173. (The Docker image does not include the optional Image mode libraries.)
 
 ## Running the app
 
@@ -433,6 +434,7 @@ Close other heavy programs while painting. The biggest speed-up by far is an NVI
 | The first image takes many minutes | It is downloading/loading the model. Wait for `Image model ready` in the log, then try again. |
 | Every image is slow | Use `IMAGE_SIZE=256`, close other programs, or use an NVIDIA GPU. |
 | `ollama run x/flux2-klein` → *requires MLX support* | Ollama image models only work on macOS – use Lumina's Image mode instead. |
+| Warnings at start-up: *torch.jit.script is not supported in Python 3.14*, *requires torchvision*, *symlinks not supported*, *unauthenticated requests to the HF Hub*, *disabled the safety checker* | Harmless – images still work. They only appear while the model loads. |
 
 SD-Turbo is released by Stability AI under its own licence – free for personal and research use; read [stability.ai/license](https://stability.ai/license) before using images commercially.
 
@@ -598,10 +600,12 @@ Details: [docs/security.md](docs/security.md).
 | Frontend shows network errors | The backend must run on port 5001. Different port? `BACKEND_URL=http://127.0.0.1:<port> npm run dev` |
 | A full answer takes a long time | Writing speed depends on your processor and the model size. Lumina already starts writing sooner by reading only the relevant sentences. For 2–3× faster writing use a smaller model: `ollama pull llama3.2:1b` (or `qwen2.5:1.5b`), then pick it in the model menu at the top. |
 | Answers are slow | On a CPU-only laptop pick a smaller model in ⚙ Settings: `ollama pull llama3.2:1b` or `ollama pull qwen2.5:1.5b` (2–3× faster than 3B). Use the *Concise* style, set `RAG_MAX_CONTEXT_CHARS=3500` and `LLM_NUM_CTX=3072`, and close other heavy apps. |
-| "The AI model did not answer within … seconds" / "Local Ollama streaming request failed" | Your PC was busy. Update to v6.1 (questions are queued so waiting no longer times out), use a smaller model, or raise `LLM_TIMEOUT` in `.env`. Check the model works with `ollama run llama3.2:3b "hi"`. |
+| "The AI model did not answer within … seconds" / "Local Ollama streaming request failed" | Your PC was busy. Since v6.1 questions are queued so waiting no longer times out; use a smaller model, or raise `LLM_TIMEOUT` in `.env`. Check the model works with `ollama run llama3.2:3b "hi"`. |
 | `ModuleNotFoundError` | Activate the virtual environment and run `pip install -r backend/requirements.txt` again. |
 | `Fatal error in launcher` (pip, pytest) | The `.venv` was copied from another folder. Delete it and create it again (`python -m venv .venv`), or run tools as `python -m pip …`. |
 | Image mode problems | See [Image troubleshooting](#image-troubleshooting). |
+| `address already in use` / port 5001 busy | Lumina is already running in another terminal. Use that one or stop it: `Get-NetTCPConnection -LocalPort 5001` → `Stop-Process -Id <id> -Force`. |
+| Sidebar says "Backend is not running" | Start the backend (Terminal 1) and refresh the page. Old error messages stay in the chat until you click **New chat**. |
 
 ## Development and tests
 
@@ -626,6 +630,10 @@ python scripts/evaluate.py             # all 15 tests
 It asks real questions about a test document with known answers and scores accuracy, honesty (does it admit when something is not in the document?), whole-document summaries, follow-up memory, every answer style, completeness, citations and speed, then writes `evaluation-results.md`. The full list of automated, effectiveness and manual test cases is in [docs/TEST_CASES.md](docs/TEST_CASES.md).
 
 More: [docs/development.md](docs/development.md).
+
+## What's new
+
+See [CHANGELOG.md](CHANGELOG.md) for every version.
 
 ## Contributing
 

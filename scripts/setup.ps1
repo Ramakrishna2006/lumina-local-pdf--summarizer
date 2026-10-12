@@ -1,5 +1,7 @@
 # One-time setup for Windows (PowerShell).
 # Run from the project folder:   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
+# Add -WithImages to also install the optional Image mode libraries (several GB).
+param([switch]$WithImages)
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
@@ -28,6 +30,14 @@ Write-Host "[5/5] Downloading AI models with Ollama..." -ForegroundColor Cyan
 if (Get-Command ollama -ErrorAction SilentlyContinue) {
     ollama pull llama3.2:3b
     ollama pull embeddinggemma
+}
+
+if ($WithImages) {
+    Write-Host "[extra] Installing Image mode libraries (PyTorch CPU + diffusers)..." -ForegroundColor Cyan
+    & .\.venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+    & .\.venv\Scripts\python.exe -m pip install -r backend\requirements-image.txt
+} else {
+    Write-Host "Image mode not installed. To add it later run:  powershell -ExecutionPolicy Bypass -File scripts\setup.ps1 -WithImages" -ForegroundColor DarkGray
 }
 
 Write-Host "`nSetup complete. Start the app with:  powershell -ExecutionPolicy Bypass -File scripts\start.ps1" -ForegroundColor Green

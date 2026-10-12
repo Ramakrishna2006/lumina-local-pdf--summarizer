@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # One-time setup for macOS / Linux.   Run:  bash scripts/setup.sh
+# Add --with-images to also install the optional Image mode libraries (several GB).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -21,5 +22,13 @@ echo "[4/5] Installing frontend packages..."
 
 echo "[5/5] Downloading AI models..."
 if command -v ollama >/dev/null; then ollama pull llama3.2:3b; ollama pull embeddinggemma; fi
+
+if [ "${1:-}" = "--with-images" ]; then
+  echo "[extra] Installing Image mode libraries (PyTorch CPU + diffusers)..."
+  .venv/bin/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+  .venv/bin/python -m pip install -r backend/requirements-image.txt
+else
+  echo "Image mode not installed. To add it later run:  bash scripts/setup.sh --with-images"
+fi
 
 echo "Setup complete. Start with:  bash scripts/start.sh"

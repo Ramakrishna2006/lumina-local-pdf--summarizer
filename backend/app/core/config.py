@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # Application
     # ------------------------------------------------------------------
     app_name: str = "Lumina"
-    app_version: str = "7.0.0"
+    app_version: str = "7.1.0"
     host: str = "127.0.0.1"
     port: int = 5001
     log_level: str = "INFO"
