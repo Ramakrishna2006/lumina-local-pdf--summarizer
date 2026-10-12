@@ -8,6 +8,8 @@ Interactive API docs: http://127.0.0.1:5001/docs
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import json
 import logging
 import mimetypes
@@ -19,7 +21,7 @@ from typing import Any, AsyncGenerator
 from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -33,6 +35,7 @@ from backend.app.models.chunk import DocumentChunk
 from backend.app.models.document import Document
 from backend.app.services import answer_cache
 from backend.app.services import chat as chat_service
+from backend.app.services import image_gen
 from backend.app.services import rag_service
 from backend.app.services.extraction.pdf import engine_name as pdf_engine
 from backend.app.services.extraction.extractor import extract_document, supported_extensions
@@ -120,6 +123,66 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=2048)
+
+
+# ============================================================
+# ACCESS PASSWORD (only when ACCESS_PASSWORD is set in .env)
+# ============================================================
+
+ACCESS_COOKIE = "lumina_access"
+_OPEN_PATHS = {"/api/auth/status", "/api/auth/login", "/api/auth/logout"}
+
+
+def _access_token() -> str:
+    """Cookie value derived from the password (the password itself is never sent back)."""
+    return hmac.new(s.access_password.encode(), b"lumina-access-v1", hashlib.sha256).hexdigest()
+
+
+def _has_access(request: Request) -> bool:
+    if not s.access_password:
+        return True
+    return hmac.compare_digest(request.cookies.get(ACCESS_COOKIE, ""), _access_token())
+
+
+@app.middleware("http")
+async def access_guard(request: Request, call_next):
+    path = request.url.path
+    protected = path.startswith("/api") or path in {"/docs", "/redoc", "/openapi.json"}
+    if protected and path not in _OPEN_PATHS and request.method != "OPTIONS" and not _has_access(request):
+        return JSONResponse({"detail": "Password required."}, status_code=401)
+    return await call_next(request)
+
+
+class LoginRequest(BaseModel):
+    password: str = Field(..., min_length=1, max_length=200)
+
+
+@app.get("/api/auth/status")
+def auth_status(request: Request):
+    return {"required": bool(s.access_password), "ok": _has_access(request)}
+
+
+@app.post("/api/auth/login")
+async def auth_login(body: LoginRequest, request: Request):
+    if not s.access_password:
+        return {"ok": True}
+    if not hmac.compare_digest(body.password.encode(), s.access_password.encode()):
+        await asyncio.sleep(1.0)  # slow down password guessing
+        raise HTTPException(401, "Wrong password.")
+    secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    response = JSONResponse({"ok": True})
+    response.set_cookie(
+        ACCESS_COOKIE, _access_token(), max_age=30 * 24 * 3600,
+        httponly=True, samesite="lax", secure=secure, path="/",
+    )
+    return response
+
+
+@app.post("/api/auth/logout")
+def auth_logout():
+    response = JSONResponse({"ok": True})
+    response.delete_cookie(ACCESS_COOKIE, path="/")
+    return response
 
 
 @app.middleware("http")
@@ -973,6 +1036,41 @@ async def stream_chat_message(chat_id: str, request: ChatMessageRequest):
         model=request.model, top_k=request.top_k, history=history, on_complete=save,
         language=request.language, use_cache=not request.regenerate,
     ))
+
+
+# ============================================================
+# IMAGE GENERATION ("Image" mode)
+# ============================================================
+
+class ImageRequest(BaseModel):
+    prompt: str = Field(..., min_length=1, max_length=1000)
+    size: int | None = Field(default=None, ge=256, le=1024)
+    steps: int | None = Field(default=None, ge=1, le=50)
+    seed: int | None = Field(default=None, ge=0, le=2**31 - 1)
+
+
+@app.get("/api/images/status")
+def image_status():
+    return image_gen.status()
+
+
+@app.post("/api/images/generate")
+async def generate_image(request: ImageRequest):
+    try:
+        return await image_gen.generate(request.prompt, request.size, request.steps, request.seed)
+    except image_gen.ImageError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+
+
+@app.get("/api/images/{image_id}")
+def get_image(image_id: str):
+    path = image_gen.image_path(image_id)
+    if path is None:
+        raise HTTPException(404, "Image not found.")
+    return FileResponse(
+        path, media_type="image/png", filename=f"lumina-{image_id[:8]}.png", content_disposition_type="inline",
+        headers={"Cache-Control": "private, max-age=86400"},
+    )
 
 
 # ============================================================

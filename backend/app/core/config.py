@@ -29,6 +29,10 @@ class Settings(BaseSettings):
         "http://localhost:4173,http://127.0.0.1:4173"
     )
 
+    # Access password for sharing Lumina on the internet (e.g. Cloudflare
+    # Tunnel). Empty = no password (normal local use). Keep it ONLY in .env.
+    access_password: str = ""
+
     # ------------------------------------------------------------------
     # Database & storage
     # ------------------------------------------------------------------
@@ -125,6 +129,27 @@ class Settings(BaseSettings):
     ocr_workers: int = 4
 
     # ------------------------------------------------------------------
+    # Image generation (optional) – "Image" mode in the message box.
+    # IMAGE_PROVIDER:
+    #   "local"  – runs a Stable Diffusion model on this PC with diffusers
+    #              (pip install -r backend/requirements-image.txt). Works on
+    #              Windows/Linux/macOS, CPU or GPU. First use downloads it.
+    #   "openai" – any OpenAI-compatible /v1/images/generations server
+    #              (e.g. Ollama image models on macOS, LocalAI).
+    #   "off"    – hide nothing, but refuse image requests.
+    # ------------------------------------------------------------------
+    image_provider: str = "local"
+    image_model: str = "stabilityai/sd-turbo"
+    image_size: int = 512
+    image_steps: int = 1
+    image_guidance: float = 0.0
+    image_dir: str = "storage/images"
+    image_api_base_url: str = ""        # "openai" provider; empty = OLLAMA_BASE_URL + "/v1"
+    image_api_key: str = ""
+    image_api_model: str = "x/z-image-turbo"
+    image_timeout: float = 600.0
+
+    # ------------------------------------------------------------------
     # Web research (optional). Leave empty to use the free fallbacks.
     # ------------------------------------------------------------------
     web_research_enabled: bool = True
@@ -171,6 +196,7 @@ class Settings(BaseSettings):
             self.temp_dir,
             self.summary_dir,
             self.rag_dir,
+            self.image_dir,
         ):
             Path(directory).mkdir(parents=True, exist_ok=True)
 

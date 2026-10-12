@@ -572,3 +572,22 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ------------------------------------------------------------ password gate */
+.gate { min-height: 100%; display: grid; place-items: center; padding: 24px 16px; background: var(--bg); }
+.gate-card { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 32px 28px; box-shadow: var(--shadow); }
+.gate-card h1 { margin: 4px 0 0; font: 600 28px/1.2 var(--serif); color: var(--tx); }
+.gate-card p { margin: 0 0 6px; color: var(--mut); font-size: 14px; }
+.gate-card input { width: 100%; padding: 11px 14px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface-2); color: var(--tx); font: inherit; font-size: 15px; }
+.gate-card input:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+.gate-card button { width: 100%; padding: 11px 14px; border: 0; border-radius: 10px; background: var(--acc); color: var(--on-acc); font: 600 15px var(--ui); cursor: pointer; }
+.gate-card button:hover:not(:disabled) { background: var(--acc-hover); }
+.gate-card button:disabled { opacity: .55; cursor: default; }
+.gate-error { width: 100%; color: var(--danger); font-size: 13px; }
+
+/* ------------------------------------------------------------ generated images */
+.gen-image { margin: 2px 0 4px; display: flex; flex-direction: column; gap: 8px; max-width: 520px; animation: blockIn .5s var(--ease) both; }
+.gen-image a { display: block; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); box-shadow: var(--shadow-sm); }
+.gen-image img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; }
+.gen-image figcaption { font-size: 12px; color: var(--mut); font-variant-numeric: tabular-nums; }
+.msg-error { white-space: pre-line; }

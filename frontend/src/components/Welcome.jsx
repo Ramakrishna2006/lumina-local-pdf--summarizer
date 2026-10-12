@@ -10,6 +10,12 @@ const FALLBACK = {
     "List every important date, number and name",
     "Make three exam questions from this material",
   ],
+  image: [
+    "A watercolor lighthouse on a cliff at sunset",
+    "A cozy study desk with books and a warm lamp, digital art",
+    "A labelled diagram-style illustration of a plant cell",
+    "A futuristic city skyline at night, neon lights",
+  ],
   web: [
     "What are the best small local LLMs for laptops?",
     "Compare FAISS and Chroma for local vector search",
@@ -48,7 +54,7 @@ function FileCard({ name, meta, progress, ready, onOpen, index }) {
 export default function Welcome({ documents, uploads, selectedDocs, suggestions, mode, onPick, onUpload, onOpenDoc, children }) {
   const hasDocs = documents.length > 0;
   const names = selectedDocs.map((d) => d.filename);
-  const list = mode === "web" ? FALLBACK.web : suggestions === null ? null : suggestions?.length ? suggestions : FALLBACK.ai;
+  const list = mode === "web" ? FALLBACK.web : mode === "image" ? FALLBACK.image : suggestions === null ? null : suggestions?.length ? suggestions : FALLBACK.ai;
 
   // Files being uploaded or read, then the ready documents you have selected.
   const busy = documents.filter((d) => d.status === "queued" || d.status === "processing");
@@ -73,6 +79,8 @@ export default function Welcome({ documents, uploads, selectedDocs, suggestions,
       <p className="hero-sub">
         {mode === "web"
           ? "Ask anything – Lumina searches public sources and writes a cited answer with your local model."
+          : mode === "image"
+            ? "Describe a picture and Lumina paints it on this computer."
           : hasDocs
             ? names.length
               ? `Ready to answer from ${names.length === 1 ? names[0] : `${names.length} documents`}.`
@@ -98,7 +106,7 @@ export default function Welcome({ documents, uploads, selectedDocs, suggestions,
         )
       )}
 
-      {(mode === "web" || names.length > 0) && (
+      {(mode === "web" || mode === "image" || names.length > 0) && (
         <div className="suggest">
           {list === null
             ? Array.from({ length: 4 }).map((_, i) => <span key={i} className="sg skeleton" style={{ "--i": i }} />)

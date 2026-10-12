@@ -33,7 +33,9 @@ export default function Composer({
   const placeholder =
     mode === "web"
       ? "Ask anything – Lumina will search the web"
-      : disabledReason || (selectedCount > 1 ? `Ask anything about these ${selectedCount} documents` : "How can I help with your document?");
+      : mode === "image"
+        ? "Describe the image you want – e.g. a watercolor lighthouse at sunset"
+        : disabledReason || (selectedCount > 1 ? `Ask anything about these ${selectedCount} documents` : "How can I help with your document?");
 
   return (
     <div className={`composer-wrap ${centered ? "is-centered" : ""}`}>
@@ -64,9 +66,12 @@ export default function Composer({
             <button type="button" role="radio" aria-checked={mode === "web"} className={mode === "web" ? "on" : ""} onClick={() => onModeChange("web")}>
               <Icon name="globe" size={14} /> <span>Web</span>
             </button>
+            <button type="button" role="radio" aria-checked={mode === "image"} className={mode === "image" ? "on" : ""} onClick={() => onModeChange("image")}>
+              <Icon name="image" size={14} /> <span>Image</span>
+            </button>
           </div>
           <span className="spacer" />
-          {mode !== "web" && (
+          {mode === "ai" && (
             <label className="style-select" title="Answer style">
               <span className="sr-only">Answer style</span>
               <select value={style} onChange={(e) => onStyleChange(e.target.value)}>
@@ -92,7 +97,9 @@ export default function Composer({
         <p className="foot">
           {mode === "web"
             ? "Web mode sends your question to public search sites · your files stay on this computer"
-            : "Lumina runs on your computer · your documents never leave it"}
+            : mode === "image"
+              ? "Images are painted on your computer · nothing is sent online"
+              : "Lumina runs on your computer · your documents never leave it"}
         </p>
       )}
     </div>

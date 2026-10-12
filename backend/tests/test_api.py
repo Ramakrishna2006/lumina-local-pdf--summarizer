@@ -307,3 +307,27 @@ def test_slow_pc_keeps_full_answer_length(client, fake_ollama):
         assert "fake-model" in health["speed"]["models"]
     finally:
         llm._speeds.clear()
+
+
+def test_access_password(client, monkeypatch):
+    from backend.app import main
+
+    # No password (normal local use): everything is open.
+    assert client.get("/api/auth/status").json() == {"required": False, "ok": True}
+
+    monkeypatch.setattr(main.s, "access_password", "s3cret-pass")
+    client.cookies.clear()
+    assert client.get("/api/auth/status").json() == {"required": True, "ok": False}
+    assert client.get("/api/documents").status_code == 401
+    assert client.get("/api/health").status_code == 401
+    assert client.post("/api/auth/login", json={"password": "wrong"}).status_code == 401
+
+    r = client.post("/api/auth/login", json={"password": "s3cret-pass"})
+    assert r.status_code == 200 and "lumina_access" in r.cookies
+    assert "s3cret-pass" not in r.headers.get("set-cookie", "")
+    assert client.get("/api/auth/status").json()["ok"] is True
+    assert client.get("/api/documents").status_code == 200
+
+    client.post("/api/auth/logout")
+    client.cookies.clear()
+    assert client.get("/api/documents").status_code == 401

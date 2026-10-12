@@ -1,0 +1,13 @@
+# Optional: local image generation ("Image" mode, IMAGE_PROVIDER=local).
+# Big download (PyTorch + model weights, several GB). Install only if you want it:
+#
+#   CPU only (smaller, works on any PC):
+#     pip install torch --index-url https://download.pytorch.org/whl/cpu
+#     pip install -r backend/requirements-image.txt
+#
+#   NVIDIA GPU: install torch from https://pytorch.org/get-started/locally/ first.
+torch>=2.4
+diffusers>=0.30
+transformers>=4.44
+accelerate>=0.33
+safetensors>=0.4

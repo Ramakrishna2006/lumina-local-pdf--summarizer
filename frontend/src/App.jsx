@@ -386,6 +386,29 @@ export default function App() {
     }
   }
 
+  async function runImage(prompt, assistantId) {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setSending(true);
+    stickToBottom.current = true;
+    const patch = (fields) => setMessages((list) => list.map((m) => (m.id === assistantId ? { ...m, ...fields } : m)));
+    patch({ phase: "painting", startedAt: Date.now() });
+    try {
+      const image = await api("/api/images/generate", { method: "POST", body: { prompt }, signal: controller.signal });
+      patch({ streaming: false, image, content: "" });
+    } catch (e) {
+      if (e.name === "AbortError") patch({ streaming: false, content: "_Stopped._" });
+      else {
+        patch({ streaming: false, error: e.message });
+        notify("Could not make the image", "error");
+      }
+    } finally {
+      setSending(false);
+      abortRef.current = null;
+      setTimeout(() => inputRef.current?.focus(), 30);
+    }
+  }
+
   async function ensureChat(text) {
     const ids = readySelected.map((d) => d.id);
     const same =
@@ -418,7 +441,9 @@ export default function App() {
         { id: assistantId, role: "assistant", content: "", sources: [], streaming: true, phase: "searching", mode },
       ]);
 
-      if (mode === "web") {
+      if (mode === "image") {
+        await runImage(text, assistantId);
+      } else if (mode === "web") {
         await runStream({
           path: "/api/research/stream",
           body: { question: text, document_ids: readySelected.map((d) => d.id), chat_id: chat?.id || null, model: model || null, language },
@@ -501,7 +526,7 @@ export default function App() {
   const readyCount = documents.filter((d) => d.status === "completed").length;
   const defaultModel = health?.default_model || health?.ollama_model || "";
   const lastAssistant = messages.length ? messages[messages.length - 1] : null;
-  const showFollowUps = mode === "ai" && !sending && lastAssistant?.role === "assistant" && !lastAssistant.error && suggestions?.length > 0;
+  const showFollowUps = mode === "ai" && !sending && lastAssistant?.role === "assistant" && lastAssistant.mode !== "image" && !lastAssistant.error && suggestions?.length > 0;
 
   return (
     <div className={`app ${collapsed ? "side-collapsed" : ""}`} data-motion={motion ? "on" : "off"}>
@@ -548,10 +573,12 @@ export default function App() {
             onClick={() => readySelected[0] && setDrawerDocId(readySelected[0].id)}
             title={readySelected.length ? readySelected.map((d) => d.filename).join("\n") + "\n\nClick for summaries" : "Tick documents in the library"}
           >
-            <Icon name={mode === "web" ? "globe" : "doc"} size={14} />
+            <Icon name={mode === "web" ? "globe" : mode === "image" ? "image" : "doc"} size={14} />
             <span className="pill-text">
               {mode === "web"
                 ? "Web search"
+                : mode === "image"
+                  ? "Image"
                 : readySelected.length === 1
                   ? readySelected[0].filename
                   : readySelected.length
@@ -656,7 +683,7 @@ export default function App() {
                     key={m.id || i}
                     message={m}
                     isLast={i === messages.length - 1}
-                    canRegenerate={Boolean(activeChat) && m.mode !== "web" && !sending}
+                    canRegenerate={Boolean(activeChat) && m.mode !== "web" && m.mode !== "image" && !sending}
                     onRegenerate={regenerate}
                     onFollowUp={(p) => send(p)}
                     exportHref={activeChat ? downloadUrl(`/api/chats/${activeChat.id}/export`) : null}

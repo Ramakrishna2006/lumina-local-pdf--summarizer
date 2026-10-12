@@ -8,10 +8,13 @@ import "@fontsource/source-serif-4/400.css";
 import "@fontsource/source-serif-4/600.css";
 import "@fontsource/jetbrains-mono/400.css";
 import App from "./App.jsx";
+import Gate from "./components/Gate.jsx";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <Gate>
+      <App />
+    </Gate>
   </React.StrictMode>
 );

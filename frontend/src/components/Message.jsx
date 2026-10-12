@@ -3,6 +3,7 @@ import Icon from "./Icons.jsx";
 import Mark from "./Mark.jsx";
 import Markdown from "./Markdown.jsx";
 import { seconds } from "../utils.js";
+import { downloadUrl } from "../api.js";
 
 function Sources({ sources }) {
   const [show, setShow] = useState(false);
@@ -113,6 +114,32 @@ function Eta({ estimate, startedAt }) {
   return <span className="eta">{left > 0 ? `first words in about ${left} s` : "almost there"}</span>;
 }
 
+/** Seconds since the image started, so a slow PC still shows progress. */
+function Elapsed({ startedAt }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  if (!startedAt) return null;
+  const s = Math.round((Date.now() - startedAt) / 1000);
+  return <span className="eta">{s} s · the first image also loads the model</span>;
+}
+
+function GeneratedImage({ image }) {
+  const src = downloadUrl(image.url);
+  return (
+    <figure className="gen-image">
+      <a href={src} target="_blank" rel="noreferrer" title="Open full size">
+        <img src={src} alt={image.prompt} width={image.width} height={image.height} />
+      </a>
+      <figcaption>
+        {image.width}×{image.height} · {seconds(Math.round(image.seconds * 1000))} · {image.model}
+      </figcaption>
+    </figure>
+  );
+}
+
 export default function Message({ message, isLast, onRegenerate, canRegenerate, exportHref, onFollowUp }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
@@ -136,14 +163,19 @@ export default function Message({ message, isLast, onRegenerate, canRegenerate, 
         {thinking ? (
           <div className="thinking" role="status">
             <span className="shimmer">
-              {message.phase === "searching"
+              {message.mode === "image"
+                ? "Painting your image"
+                : message.phase === "searching"
                 ? message.mode === "web" ? "Searching the web" : "Finding the right passages"
                 : `Reading ${message.sources?.length || ""} ${message.sources?.length === 1 ? "passage" : "passages"}`.replace("  ", " ")}
             </span>
-            {message.phase !== "searching" && <Eta estimate={message.firstWord || message.estimate} startedAt={message.startedAt} />}
+            {message.mode === "image" && <Elapsed startedAt={message.startedAt} />}
+            {message.phase !== "searching" && message.mode !== "image" && <Eta estimate={message.firstWord || message.estimate} startedAt={message.startedAt} />}
           </div>
         ) : message.error ? (
           <p className="msg-error"><Icon name="alert" size={16} /> {message.error}</p>
+        ) : message.image ? (
+          <GeneratedImage image={message.image} />
         ) : (
           <div className="answer">
             <Markdown text={text} />
@@ -155,13 +187,23 @@ export default function Message({ message, isLast, onRegenerate, canRegenerate, 
 
         {!message.streaming && !message.error && (
           <div className="actions">
+            {message.image && (
+              <a className="act" href={downloadUrl(message.image.url)} download={`lumina-${message.image.id.slice(0, 8)}.png`}>
+                <Icon name="download" size={14} /> Download
+              </a>
+            )}
+            {message.image && isLast && onFollowUp && (
+              <button type="button" className="act" onClick={() => onFollowUp(message.image.prompt)}>
+                <Icon name="refresh" size={14} /> Another version
+              </button>
+            )}
             <button
               type="button"
               className="act icon-only"
-              title={copied ? "Copied" : "Copy"}
+              title={copied ? "Copied" : message.image ? "Copy prompt" : "Copy"}
               aria-label="Copy answer"
               onClick={() => {
-                navigator.clipboard?.writeText(message.content || "");
+                navigator.clipboard?.writeText(message.image ? message.image.prompt : message.content || "");
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               }}
@@ -173,7 +215,7 @@ export default function Message({ message, isLast, onRegenerate, canRegenerate, 
                 <Icon name="refresh" size={15} />
               </button>
             )}
-            {exportHref && (
+            {exportHref && !message.image && (
               <a className="act icon-only" href={exportHref} title="Export chat as Markdown" aria-label="Export chat">
                 <Icon name="download" size={15} />
               </a>

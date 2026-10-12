@@ -16,4 +16,5 @@ RUN mkdir -p storage
 
 ENV HOST=0.0.0.0 PORT=5001 TESSERACT_CMD=/usr/bin/tesseract
 EXPOSE 5001
-CMD ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "5001"]
+# Hosts like Render/Railway pass the port in $PORT
+CMD ["sh", "-c", "python -m uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-5001}"]

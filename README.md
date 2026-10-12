@@ -74,6 +74,7 @@ Upload PDFs, Word files, slide decks, spreadsheets, code or photos of pages. Ask
 
 **Flexible engine**
 - 🦙 Ollama by default, **or** LM Studio / llama.cpp / vLLM / Jan / LocalAI through the OpenAI-compatible API.
+- 🎨 Optional **Image mode** – describe a picture and Lumina paints it **on your computer** with Stable Diffusion (SD-Turbo, works on Windows CPUs), or with any OpenAI-compatible image server such as Ollama's image models on macOS. Images can be downloaded as PNG.
 - 🌐 Optional **Web mode** – researches public sources (GitHub, Stack Overflow, arXiv, Hugging Face, DuckDuckGo, optional Google) and writes a cited answer.
 
 ## Screenshots
@@ -265,6 +266,46 @@ python -m uvicorn backend.app.main:app --port 5001
 ```
 
 The backend now also serves the interface at **http://127.0.0.1:5001**.
+
+### Share it on the internet (Cloudflare Tunnel)
+
+1. Set a password in `.env` – Lumina then shows a lock screen to every visitor:
+   ```
+   ACCESS_PASSWORD=choose-a-long-password
+   ```
+2. Build the interface and start the backend in one-port mode (above).
+3. In a second terminal (install once with `winget install --id Cloudflare.cloudflared`):
+   ```powershell
+   cloudflared tunnel --url http://localhost:5001
+   ```
+4. Share the `https://….trycloudflare.com` link it prints, plus the password.
+
+The link works only while your PC, Ollama, the backend and the tunnel are running. Stop sharing with **Ctrl + C**.
+
+## Image generation (optional)
+
+Click **Image** in the message box, describe a picture and press Enter. Images are made on your computer and saved in `storage/images/`.
+
+**1. Install the extra libraries** (only once; PyTorch and the model are a few GB):
+```powershell
+.\.venv\Scripts\Activate.ps1
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install -r backend\requirements-image.txt
+```
+Have an NVIDIA graphics card? Install the CUDA build of PyTorch from [pytorch.org](https://pytorch.org/get-started/locally/) instead of the first line – images become much faster.
+
+**2. Restart the backend** and make your first image. The first one downloads the model (`stabilityai/sd-turbo`, about 2–3 GB, internet needed once) and loads it, so it takes a few minutes. After that every image is made offline; on a normal laptop CPU a 512 × 512 image usually takes several seconds to a minute.
+
+**Settings** (in `.env`):
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `IMAGE_PROVIDER` | `local` | `local` = Stable Diffusion on this PC · `openai` = an OpenAI-compatible image server · `off` = turned off |
+| `IMAGE_MODEL` | `stabilityai/sd-turbo` | Any Hugging Face text-to-image model that `diffusers` can load |
+| `IMAGE_SIZE` / `IMAGE_STEPS` | `512` / `1` | Image size in pixels (256–1024) and drawing steps (SD-Turbo needs only 1) |
+| `IMAGE_API_BASE_URL` / `IMAGE_API_MODEL` | Ollama / `x/z-image-turbo` | Used only with `IMAGE_PROVIDER=openai` |
+
+SD-Turbo is released by Stability AI under its own licence – free for personal and research use; read [stability.ai/license](https://stability.ai/license) before using images commercially.
 
 ## How to use it
 

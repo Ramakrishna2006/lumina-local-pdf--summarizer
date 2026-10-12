@@ -12,6 +12,9 @@ async function parse(response) {
   } catch {
     data = { detail: text };
   }
+  if (response.status === 401 && data.detail === "Password required.") {
+    window.dispatchEvent(new Event("lumina:locked"));
+  }
   if (!response.ok) {
     const detail = Array.isArray(data.detail)
       ? data.detail.map((d) => d.msg).join(", ")
@@ -46,6 +49,7 @@ export function uploadFile(file, onProgress) {
       } catch {
         data = {};
       }
+      if (xhr.status === 401) window.dispatchEvent(new Event("lumina:locked"));
       if (xhr.status >= 200 && xhr.status < 300) resolve(data);
       else reject(new Error(data.detail || `Upload failed (${xhr.status})`));
     };
