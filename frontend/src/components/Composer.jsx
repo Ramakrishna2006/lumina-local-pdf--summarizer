@@ -17,6 +17,7 @@ export default function Composer({
   selectedCount,
   inputRef,
   centered = false,
+  imageEnabled = true,
 }) {
   const localRef = useRef(null);
   const ref = inputRef || localRef;
@@ -66,9 +67,11 @@ export default function Composer({
             <button type="button" role="radio" aria-checked={mode === "web"} className={mode === "web" ? "on" : ""} onClick={() => onModeChange("web")}>
               <Icon name="globe" size={14} /> <span>Web</span>
             </button>
+            {imageEnabled && (
             <button type="button" role="radio" aria-checked={mode === "image"} className={mode === "image" ? "on" : ""} onClick={() => onModeChange("image")}>
               <Icon name="image" size={14} /> <span>Image</span>
             </button>
+            )}
           </div>
           <span className="spacer" />
           {mode === "ai" && (

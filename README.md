@@ -294,15 +294,23 @@ pip install -r backend\requirements-image.txt
 ```
 Have an NVIDIA graphics card? Install the CUDA build of PyTorch from [pytorch.org](https://pytorch.org/get-started/locally/) instead of the first line – images become much faster.
 
-**2. Restart the backend** and make your first image. The first one downloads the model (`stabilityai/sd-turbo`, about 2–3 GB, internet needed once) and loads it, so it takes a few minutes. After that every image is made offline; on a normal laptop CPU a 512 × 512 image usually takes several seconds to a minute.
+**2. Restart the backend.** The first start downloads the model (`stabilityai/sd-turbo` plus a tiny fast decoder, about 2–3 GB, internet needed once). Lumina then **loads the model in the background at start-up**, so it is ready before you ask. After that every image is made offline.
+
+**Making it faster on a slow PC**
+- `IMAGE_SIZE=256` – about 2× faster than the default 384 (512 gives the best detail but is slowest).
+- `IMAGE_FAST_DECODER=true` (default) – uses the tiny TAESD decoder, which is much faster on a CPU.
+- Close other heavy programs; an NVIDIA GPU with the CUDA build of PyTorch is by far the biggest speed-up.
+
+**Don't want images at all?** Put `IMAGE_PROVIDER=off` in `.env` and restart – the Image button disappears and nothing is loaded. You can also uninstall the extra libraries: `pip uninstall torch diffusers transformers accelerate`.
 
 **Settings** (in `.env`):
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `IMAGE_PROVIDER` | `local` | `local` = Stable Diffusion on this PC · `openai` = an OpenAI-compatible image server · `off` = turned off |
+| `IMAGE_PROVIDER` | `local` | `local` = Stable Diffusion on this PC · `openai` = an OpenAI-compatible image server · `off` = Image button removed |
 | `IMAGE_MODEL` | `stabilityai/sd-turbo` | Any Hugging Face text-to-image model that `diffusers` can load |
-| `IMAGE_SIZE` / `IMAGE_STEPS` | `512` / `1` | Image size in pixels (256–1024) and drawing steps (SD-Turbo needs only 1) |
+| `IMAGE_SIZE` / `IMAGE_STEPS` | `384` / `1` | Image size in pixels (256–1024) and drawing steps (SD-Turbo needs only 1) |
+| `IMAGE_FAST_DECODER` / `IMAGE_PRELOAD` | `true` / `true` | Tiny fast decoder · load the model in the background at start-up |
 | `IMAGE_API_BASE_URL` / `IMAGE_API_MODEL` | Ollama / `x/z-image-turbo` | Used only with `IMAGE_PROVIDER=openai` |
 
 SD-Turbo is released by Stability AI under its own licence – free for personal and research use; read [stability.ai/license](https://stability.ai/license) before using images commercially.

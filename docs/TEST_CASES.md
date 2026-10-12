@@ -18,7 +18,7 @@ pip install -r backend\requirements-dev.txt
 pytest backend\tests -q
 ```
 
-Expected: `37 passed`. The tests use a fake Ollama server, so they run without a model. They cover:
+Expected: `38 passed`. The tests use a fake Ollama server, so they run without a model. They cover:
 
 | Area | What is tested |
 |---|---|
@@ -150,3 +150,4 @@ Use a real PDF, a PowerPoint and a Word file of your own. Mark each row ✅ or �
 | M36 | Without the image libraries, click **Image** and ask for "a red apple" | a clear message explaining how to install them – no crash |
 | M37 | Install the libraries, restart, ask for "a watercolor lighthouse at sunset" | "Painting your image" with a seconds counter, then the picture (the first time downloads the model) |
 | M38 | Click **Download** and **Another version** | a PNG file is saved · a new, different image is made |
+| M39 | Put `IMAGE_PROVIDER=off` in `.env`, restart | the Image button is gone |

@@ -98,6 +98,7 @@ def status() -> dict[str, Any]:
             model=s.image_model,
             ready=not missing,
             loaded=_pipeline is not None and _pipeline_model == s.image_model,
+            fast_decoder=s.image_fast_decoder,
             missing=missing,
             message="" if not missing else INSTALL_HINT,
         )
@@ -135,6 +136,17 @@ def _load_pipeline():
         pipe = AutoPipelineForText2Image.from_pretrained(s.image_model, torch_dtype=dtype, variant="fp16")
     except (OSError, ValueError):
         pipe = AutoPipelineForText2Image.from_pretrained(s.image_model, torch_dtype=dtype)
+    if s.image_fast_decoder:
+        # TAESD: a tiny replacement for the image decoder. On a CPU the normal
+        # decoder is often the slowest step; this one is many times faster.
+        try:
+            from diffusers import AutoencoderTiny  # noqa: PLC0415
+
+            pipe.vae = AutoencoderTiny.from_pretrained(s.image_fast_decoder_model, torch_dtype=dtype)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Fast image decoder not used (%s) – using the normal one.", exc)
+    if device == "cpu" and s.image_threads > 0:
+        torch.set_num_threads(s.image_threads)
     pipe = pipe.to(device)
     if hasattr(pipe, "set_progress_bar_config"):
         pipe.set_progress_bar_config(disable=True)
@@ -158,6 +170,22 @@ def _generate_local(prompt: str, size: int, steps: int, seed: int) -> Image.Imag
         generator=generator,
     )
     return result.images[0]
+
+
+def should_preload() -> bool:
+    s = settings()
+    return provider() == "local" and s.image_preload and not missing_packages()
+
+
+async def preload() -> None:
+    """Load the model in the background so the first image does not wait for it."""
+    if not should_preload():
+        return
+    try:
+        async with _lock:
+            await asyncio.to_thread(_load_pipeline)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Image model preload skipped: %s", exc)
 
 
 # ------------------------------------------------------------------ OpenAI-compatible server

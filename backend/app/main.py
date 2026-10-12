@@ -102,8 +102,10 @@ async def lifespan(_app: FastAPI):
         s.app_name, s.app_version, s.provider, s.default_model, s.embedding_model or "keyword-only", pdf_engine(),
     )
     warm_task = asyncio.create_task(_warm_models())
+    image_task = asyncio.create_task(image_gen.preload())
     yield
     warm_task.cancel()
+    image_task.cancel()
     await close_client()
 
 

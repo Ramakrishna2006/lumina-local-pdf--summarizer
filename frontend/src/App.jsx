@@ -50,6 +50,15 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [question, setQuestion] = useState("");
   const [mode, setMode] = useState("ai");
+  const [imageEnabled, setImageEnabled] = useState(true);
+  useEffect(() => {
+    api("/api/images/status")
+      .then((st) => {
+        setImageEnabled(st.enabled !== false);
+        if (st.enabled === false) setMode((m) => (m === "image" ? "ai" : m));
+      })
+      .catch(() => {});
+  }, []);
   const [style, setStyle] = useState(() => load("lm.style", "balanced"));
   const [language, setLanguage] = useState(() => load("lm.language", "auto"));
   const [languages, setLanguages] = useState([{ id: "auto", label: "Same as the question" }]);
@@ -518,6 +527,7 @@ export default function App() {
       disabledReason={mode === "ai" && !readySelected.length ? disabledReason : ""}
       selectedCount={readySelected.length}
       inputRef={inputRef}
+      imageEnabled={imageEnabled}
     />
   );
   const speedTip = (

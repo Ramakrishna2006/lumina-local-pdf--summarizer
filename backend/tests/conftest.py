@@ -24,6 +24,7 @@ os.environ.update({
     "LLM_WARMUP_ON_STARTUP": "false",
     "OLLAMA_MODEL": "fake-model",
     "RAG_EMBEDDING_MODEL": "fake-embed",
+    "IMAGE_PRELOAD": "false",          # never download the real image model in tests
 })
 
 import httpx  # noqa: E402

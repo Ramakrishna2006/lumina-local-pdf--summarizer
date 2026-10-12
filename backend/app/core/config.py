@@ -136,11 +136,15 @@ class Settings(BaseSettings):
     #              Windows/Linux/macOS, CPU or GPU. First use downloads it.
     #   "openai" – any OpenAI-compatible /v1/images/generations server
     #              (e.g. Ollama image models on macOS, LocalAI).
-    #   "off"    – hide nothing, but refuse image requests.
+    #   "off"    – removes the Image button from the app.
     # ------------------------------------------------------------------
     image_provider: str = "local"
     image_model: str = "stabilityai/sd-turbo"
-    image_size: int = 512
+    image_size: int = 384
+    image_fast_decoder: bool = True        # tiny VAE decoder (TAESD) – much faster on CPU
+    image_fast_decoder_model: str = "madebyollin/taesd"
+    image_preload: bool = True             # load the image model in the background at start-up
+    image_threads: int = 0                 # CPU threads for images (0 = all cores)
     image_steps: int = 1
     image_guidance: float = 0.0
     image_dir: str = "storage/images"

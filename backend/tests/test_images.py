@@ -66,3 +66,22 @@ def test_image_openai_provider(client, monkeypatch):
     assert r.status_code == 200, r.text
     assert seen["url"].endswith("/v1/images/generations")
     assert client.get(r.json()["url"]).status_code == 200
+
+
+def test_image_preload_and_off_switch(client, monkeypatch):
+    import asyncio
+
+    # Preload never runs without the libraries, or when switched off.
+    monkeypatch.setattr(image_gen, "missing_packages", lambda: ["torch"])
+    assert image_gen.should_preload() is False
+    asyncio.run(image_gen.preload())          # must not raise
+
+    monkeypatch.setattr(image_gen, "missing_packages", lambda: [])
+    monkeypatch.setattr(image_gen.settings(), "image_preload", True)
+    assert image_gen.should_preload() is True
+    monkeypatch.setattr(image_gen.settings(), "image_preload", False)
+    assert image_gen.should_preload() is False
+
+    # IMAGE_PROVIDER=off tells the app to hide the Image button.
+    monkeypatch.setattr(image_gen.settings(), "image_provider", "off")
+    assert client.get("/api/images/status").json()["enabled"] is False
