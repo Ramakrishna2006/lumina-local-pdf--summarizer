@@ -18,7 +18,7 @@ pip install -r backend\requirements-dev.txt
 pytest backend\tests -q
 ```
 
-Expected: `38 passed`. The tests use a fake Ollama server and a fake image painter, so they run without any model. They cover:
+Expected: `42 passed`. The tests use a fake Ollama server and a fake image painter, so they run without any model. They cover:
 
 | Area | What is tested |
 |---|---|
@@ -153,3 +153,12 @@ Use a real PDF, a PowerPoint and a Word file of your own. Mark each row ✅ or �
 | M37 | Install the libraries, restart, ask for "a watercolor lighthouse at sunset" | "Painting your image" with a seconds counter, then the picture (the first time downloads the model) |
 | M38 | Click **Download** and **Another version** | a PNG file is saved · a new, different image is made |
 | M39 | Put `IMAGE_PROVIDER=off` in `.env`, restart | the Image button is gone |
+
+### Code mode, colours, online images (v7.2)
+
+| ID | Steps | Expected result |
+|---|---|---|
+| M40 | Click **Code**, ask "Write a Python script that renames all files in a folder" | coloured code, **Download** saves `rename_files.py` (or `snippet.py`) |
+| M41 | Ask a follow-up "add a dry-run option" | the answer builds on the previous code |
+| M42 | ⚙ → Change colours… → Teal, Ocean, Dark → reload | colours stay; text readable |
+| M43 | With `IMAGE_PROVIDER=pollinations`, click **Image**, ask "a fox in the snow" | a picture after a few seconds; the note says the description goes to pollinations.ai |

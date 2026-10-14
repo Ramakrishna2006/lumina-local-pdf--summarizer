@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # Application
     # ------------------------------------------------------------------
     app_name: str = "Lumina"
-    app_version: str = "7.1.1"
+    app_version: str = "7.2.0"
     host: str = "127.0.0.1"
     port: int = 5001
     log_level: str = "INFO"
@@ -136,6 +136,8 @@ class Settings(BaseSettings):
     #              Windows/Linux/macOS, CPU or GPU. First use downloads it.
     #   "openai" – any OpenAI-compatible /v1/images/generations server
     #              (e.g. Ollama image models on macOS, LocalAI).
+    #   "pollinations" – free online image service (no key needed; works on
+    #              Render). Prompts are sent to pollinations.ai.
     #   "off"    – removes the Image button from the app.
     # ------------------------------------------------------------------
     image_provider: str = "local"
@@ -152,6 +154,12 @@ class Settings(BaseSettings):
     image_api_key: str = ""
     image_api_model: str = "x/z-image-turbo"
     image_timeout: float = 600.0
+    image_cloud_url: str = "https://image.pollinations.ai/prompt/"   # "pollinations" provider
+    image_cloud_model: str = "flux"
+    image_cloud_size: int = 768        # online images can be bigger – they are not made on your CPU
+
+    # Code mode – writing and fixing code without needing a document
+    code_max_tokens: int = 1800
 
     # ------------------------------------------------------------------
     # Web research (optional). Leave empty to use the free fallbacks.

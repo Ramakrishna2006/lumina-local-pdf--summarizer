@@ -23,7 +23,7 @@ services:
       - key: OPENAI_EMBEDDING_MODEL
         value: ""                      # empty = keyword search (no embedding API needed)
       - key: IMAGE_PROVIDER
-        value: "off"                   # local image models are too heavy for Render
+        value: pollinations            # free online image service (no key) – local models are too heavy for Render
       - key: LLM_WARMUP_ON_STARTUP
         value: "false"
       - key: LLM_MAX_PARALLEL

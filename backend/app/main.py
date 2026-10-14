@@ -49,6 +49,8 @@ from backend.app.services.llm import (
     generate,
     generate_answer,
     generate_answer_stream,
+    generate_stream,
+    language_instruction,
     list_models,
     measure_speed,
     normalize_language,
@@ -1162,6 +1164,78 @@ async def web_research_stream(request: ResearchRequest):
             }})
         except Exception as exc:  # noqa: BLE001
             log.exception("Research stream failed")
+            yield sse({"type": "error", "message": str(exc)})
+
+    return sse_response(events())
+
+
+# ============================================================
+# CODE MODE – write, explain and fix code (no document needed)
+# ============================================================
+
+class CodeTurn(BaseModel):
+    role: str = Field(..., pattern=r"^(user|assistant)$")
+    content: str = Field(..., max_length=20000)
+
+
+class CodeRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=12000)
+    history: list[CodeTurn] = Field(default_factory=list, max_length=12)
+    model: str | None = None
+    language: str | None = None
+    client_os: str = Field(default="windows", pattern=r"^(windows|macos|linux)$")
+
+
+CODE_OS = {"windows": "Windows (PowerShell)", "macos": "macOS (Terminal)", "linux": "Linux (bash)"}
+
+
+def code_system_prompt(client_os: str, language: str | None) -> str:
+    return (
+        "You are Lumina, an expert software engineer and patient teacher.\n"
+        "- Write complete, working code (no '...' placeholders). Put every piece of code in a fenced "
+        "block with its language, e.g. ```python.\n"
+        "- For several files, write each file's path on its own line in bold, like **`app/main.py`**, "
+        "directly above its code block.\n"
+        f"- When something must be installed or run, give the exact commands for {CODE_OS.get(client_os, CODE_OS['windows'])}.\n"
+        "- Fixing an error: explain the cause in one or two sentences, then show the corrected code.\n"
+        "- Keep explanations short and clear. You cannot run code, so never claim that you ran it.\n"
+        f"- {language_instruction(language)}"
+    )
+
+
+def code_prompt(question: str, history: list[CodeTurn]) -> str:
+    parts = []
+    for turn in history[-8:]:
+        who = "User" if turn.role == "user" else "Assistant"
+        parts.append(f"{who}: {turn.content[:4000]}")
+    convo = ("CONVERSATION SO FAR:\n" + "\n\n".join(parts) + "\n\n") if parts else ""
+    return f"{convo}USER REQUEST:\n{question.strip()}\n\nANSWER:"
+
+
+@app.post("/api/code/stream")
+async def code_stream(request: CodeRequest):
+    """Stream a coding answer from the AI model (Ollama locally, or your API on Render)."""
+    async def events():
+        started = time.perf_counter()
+        first = None
+        chars = 0
+        yield sse({"type": "start", "mode": "code", "model": resolve_model(request.model)})
+        try:
+            async for token in within_time(generate_stream(
+                code_prompt(request.question, request.history),
+                system=code_system_prompt(request.client_os, request.language),
+                temperature=0.2, max_tokens=s.code_max_tokens, model=request.model,
+            ), started):
+                first = first or time.perf_counter()
+                chars += len(token)
+                yield sse({"type": "token", "content": token})
+            yield sse({"type": "done", "stats": {
+                "first_token_ms": int(((first or time.perf_counter()) - started) * 1000),
+                "total_ms": int((time.perf_counter() - started) * 1000),
+                "chars": chars,
+            }})
+        except Exception as exc:  # noqa: BLE001
+            log.exception("Code answer failed")
             yield sse({"type": "error", "message": str(exc)})
 
     return sse_response(events())

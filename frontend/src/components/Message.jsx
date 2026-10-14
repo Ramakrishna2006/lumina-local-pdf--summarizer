@@ -115,7 +115,7 @@ function Eta({ estimate, startedAt }) {
 }
 
 /** Seconds since the image started, so a slow PC still shows progress. */
-function Elapsed({ startedAt }) {
+function Elapsed({ startedAt, hosted }) {
   const [, tick] = useState(0);
   useEffect(() => {
     const t = setInterval(() => tick((n) => n + 1), 1000);
@@ -123,7 +123,7 @@ function Elapsed({ startedAt }) {
   }, []);
   if (!startedAt) return null;
   const s = Math.round((Date.now() - startedAt) / 1000);
-  return <span className="eta">{s} s · the first image also loads the model</span>;
+  return <span className="eta">{s} s{hosted ? "" : " · the first image also loads the model"}</span>;
 }
 
 function GeneratedImage({ image }) {
@@ -165,12 +165,14 @@ export default function Message({ message, isLast, onRegenerate, canRegenerate, 
             <span className="shimmer">
               {message.mode === "image"
                 ? "Painting your image"
+                : message.mode === "code"
+                ? "Writing code"
                 : message.phase === "searching"
                 ? message.mode === "web" ? "Searching the web" : "Finding the right passages"
                 : `Reading ${message.sources?.length || ""} ${message.sources?.length === 1 ? "passage" : "passages"}`.replace("  ", " ")}
             </span>
-            {message.mode === "image" && <Elapsed startedAt={message.startedAt} />}
-            {message.phase !== "searching" && message.mode !== "image" && <Eta estimate={message.firstWord || message.estimate} startedAt={message.startedAt} />}
+            {message.mode === "image" && <Elapsed startedAt={message.startedAt} hosted={message.hosted} />}
+            {message.phase !== "searching" && message.mode !== "image" && message.mode !== "code" && <Eta estimate={message.firstWord || message.estimate} startedAt={message.startedAt} />}
           </div>
         ) : message.error ? (
           <p className="msg-error"><Icon name="alert" size={16} /> {message.error}</p>

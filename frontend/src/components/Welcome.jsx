@@ -16,6 +16,12 @@ const FALLBACK = {
     "A labelled diagram-style illustration of a plant cell",
     "A futuristic city skyline at night, neon lights",
   ],
+  code: [
+    "Write a Python script that renames all files in a folder",
+    "Create a FastAPI app with a /hello endpoint and a test",
+    "Explain recursion in Java with a short example",
+    "Fix this error: TypeError: 'NoneType' object is not subscriptable",
+  ],
   web: [
     "What are the best small local LLMs for laptops?",
     "Compare FAISS and Chroma for local vector search",
@@ -54,7 +60,7 @@ function FileCard({ name, meta, progress, ready, onOpen, index }) {
 export default function Welcome({ documents, uploads, selectedDocs, suggestions, mode, onPick, onUpload, onOpenDoc, children }) {
   const hasDocs = documents.length > 0;
   const names = selectedDocs.map((d) => d.filename);
-  const list = mode === "web" ? FALLBACK.web : mode === "image" ? FALLBACK.image : suggestions === null ? null : suggestions?.length ? suggestions : FALLBACK.ai;
+  const list = mode === "web" ? FALLBACK.web : mode === "image" ? FALLBACK.image : mode === "code" ? FALLBACK.code : suggestions === null ? null : suggestions?.length ? suggestions : FALLBACK.ai;
 
   // Files being uploaded or read, then the ready documents you have selected.
   const busy = documents.filter((d) => d.status === "queued" || d.status === "processing");
@@ -80,7 +86,9 @@ export default function Welcome({ documents, uploads, selectedDocs, suggestions,
         {mode === "web"
           ? "Ask anything – Lumina searches public sources and writes a cited answer with your local model."
           : mode === "image"
-            ? "Describe a picture and Lumina paints it on this computer."
+            ? "Describe a picture and Lumina paints it for you."
+          : mode === "code"
+            ? "Ask for code in any language, or paste an error – Lumina writes, explains and fixes it."
           : hasDocs
             ? names.length
               ? `Ready to answer from ${names.length === 1 ? names[0] : `${names.length} documents`}.`
@@ -106,7 +114,7 @@ export default function Welcome({ documents, uploads, selectedDocs, suggestions,
         )
       )}
 
-      {(mode === "web" || mode === "image" || names.length > 0) && (
+      {(mode === "web" || mode === "image" || mode === "code" || names.length > 0) && (
         <div className="suggest">
           {list === null
             ? Array.from({ length: 4 }).map((_, i) => <span key={i} className="sg skeleton" style={{ "--i": i }} />)

@@ -18,6 +18,7 @@ export default function Composer({
   inputRef,
   centered = false,
   imageEnabled = true,
+  imageHosted = false,
 }) {
   const localRef = useRef(null);
   const ref = inputRef || localRef;
@@ -36,6 +37,8 @@ export default function Composer({
       ? "Ask anything – Lumina will search the web"
       : mode === "image"
         ? "Describe the image you want – e.g. a watercolor lighthouse at sunset"
+        : mode === "code"
+          ? "Ask for code – e.g. a Python script that renames files, or paste an error to fix"
         : disabledReason || (selectedCount > 1 ? `Ask anything about these ${selectedCount} documents` : "How can I help with your document?");
 
   return (
@@ -63,6 +66,9 @@ export default function Composer({
           <div className="seg" role="radiogroup" aria-label="Answer source">
             <button type="button" role="radio" aria-checked={mode === "ai"} className={mode === "ai" ? "on" : ""} onClick={() => onModeChange("ai")}>
               <Icon name="doc" size={14} /> <span>Documents</span>
+            </button>
+            <button type="button" role="radio" aria-checked={mode === "code"} className={mode === "code" ? "on" : ""} onClick={() => onModeChange("code")} title="Write, explain and fix code">
+              <Icon name="code" size={14} /> <span>Code</span>
             </button>
             <button type="button" role="radio" aria-checked={mode === "web"} className={mode === "web" ? "on" : ""} onClick={() => onModeChange("web")}>
               <Icon name="globe" size={14} /> <span>Web</span>
@@ -101,8 +107,12 @@ export default function Composer({
           {mode === "web"
             ? "Web mode sends your question to public search sites · your files stay on this computer"
             : mode === "image"
-              ? "Images are painted on your computer · nothing is sent online"
-              : "Lumina runs on your computer · your documents never leave it"}
+              ? imageHosted
+                ? "Your description is sent to a free online image service (pollinations.ai)"
+                : "Images are painted on your computer · nothing is sent online"
+              : mode === "code"
+                ? "Code is written by the AI model – check it before running it"
+                : "Lumina runs on your computer · your documents never leave it"}
         </p>
       )}
     </div>

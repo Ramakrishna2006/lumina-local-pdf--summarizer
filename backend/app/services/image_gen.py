@@ -9,6 +9,9 @@ Two providers (choose with IMAGE_PROVIDER in .env):
   The model downloads automatically the first time (about 2–3 GB).
 * ``openai`` – any server with the OpenAI ``/v1/images/generations`` API, for
   example Ollama's image models on macOS or LocalAI.
+* ``pollinations`` – the free pollinations.ai image service. No key and no
+  PyTorch needed, so it works on Render. The prompt is sent to pollinations.ai
+  (anonymous use: about one image every 15 seconds).
 
 Images are saved as PNG files in IMAGE_DIR and served by the API.
 """
@@ -24,6 +27,7 @@ import random
 import re
 import time
 import uuid
+from urllib.parse import quote
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +64,7 @@ class ImageError(Exception):
 
 def provider() -> str:
     p = settings().image_provider.strip().lower()
-    return p if p in {"local", "openai", "off"} else "local"
+    return p if p in {"local", "openai", "pollinations", "off"} else "local"
 
 
 def image_dir() -> Path:
@@ -103,7 +107,10 @@ def status() -> dict[str, Any]:
             message="" if not missing else INSTALL_HINT,
         )
     elif p == "openai":
-        info.update(model=s.image_api_model, ready=True, missing=[], message="", base_url=_api_base())
+        info.update(model=s.image_api_model, ready=True, missing=[], message="", base_url=_api_base(), hosted=True)
+    elif p == "pollinations":
+        info.update(model=s.image_cloud_model, ready=True, missing=[], message="", hosted=True,
+                    service="pollinations.ai")
     else:
         info.update(model="", ready=False, missing=[], message="Image generation is turned off (IMAGE_PROVIDER=off).")
     return info
@@ -221,6 +228,26 @@ async def _generate_openai(prompt: str, size: int, steps: int, seed: int) -> Ima
     return Image.open(io.BytesIO(raw))
 
 
+# ------------------------------------------------------------------ pollinations.ai (online, free)
+
+async def _generate_pollinations(prompt: str, size: int, steps: int, seed: int) -> Image.Image:
+    s = settings()
+    size = max(size, min(1024, s.image_cloud_size))
+    params = {"width": size, "height": size, "seed": seed, "model": s.image_cloud_model,
+              "nologo": "true", "private": "true", "referrer": "lumina"}
+    headers = {"Authorization": f"Bearer {s.image_api_key}"} if s.image_api_key else {}
+    url = s.image_cloud_url.rstrip("/") + "/" + quote(prompt[:900], safe="")
+    async with httpx.AsyncClient(timeout=s.image_timeout, follow_redirects=True) as client:
+        response = await client.get(url, params=params, headers=headers)
+    if response.status_code == 429:
+        raise ImageError("The free image service is busy – wait about 15 seconds and try again.", 429)
+    if response.status_code >= 400:
+        raise ImageError(f"The image service answered {response.status_code}. Try again in a moment.", 502)
+    if not response.headers.get("content-type", "").startswith("image/"):
+        raise ImageError("The image service did not return a picture. Try again in a moment.", 502)
+    return Image.open(io.BytesIO(response.content))
+
+
 # ------------------------------------------------------------------ public API
 
 async def generate(prompt: str, size: int | None = None, steps: int | None = None, seed: int | None = None) -> dict[str, Any]:
@@ -244,12 +271,15 @@ async def generate(prompt: str, size: int | None = None, steps: int | None = Non
         try:
             if p == "local":
                 image = await asyncio.to_thread(_generate_local, prompt, size, steps, seed)
+            elif p == "pollinations":
+                image = await _generate_pollinations(prompt, size, steps, seed)
             else:
                 image = await _generate_openai(prompt, size, steps, seed)
         except ImageError:
             raise
         except httpx.HTTPError as exc:
-            raise ImageError(f"Could not reach the image server at {_api_base()}: {exc}", 502) from exc
+            where = "pollinations.ai" if p == "pollinations" else _api_base()
+            raise ImageError(f"Could not reach the image service at {where}: {type(exc).__name__}", 502) from exc
         except Exception as exc:  # noqa: BLE001
             log.exception("Image generation failed")
             raise ImageError(f"Image generation failed: {exc}", 500) from exc
@@ -267,6 +297,6 @@ async def generate(prompt: str, size: int | None = None, steps: int | None = Non
         "height": image.height,
         "steps": steps,
         "seed": seed,
-        "model": s.image_model if p == "local" else s.image_api_model,
+        "model": s.image_model if p == "local" else s.image_cloud_model if p == "pollinations" else s.image_api_model,
         "seconds": round(elapsed, 1),
     }

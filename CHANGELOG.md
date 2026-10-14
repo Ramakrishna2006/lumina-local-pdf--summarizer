@@ -2,6 +2,13 @@
 
 All notable changes to Lumina. Newest first.
 
+## 7.2.0 – Code mode, colours, images on Render
+
+**Added**
+- **Code mode** – a fourth button in the message box (Documents · **Code** · Web · Image). Ask for code in any language or paste an error; answers stream with **syntax highlighting**, **Copy** and **Download** on every code block (file names like `app/main.py` are detected), and run commands for your OS. Follow-up questions remember the conversation. `POST /api/code/stream`.
+- **Change colours** – ⚙ Settings → *Change colours…*: 9 accent colours or any custom colour, gradients, light/dark/system, custom background/sidebar/bubble/border colours, compact spacing. Text contrast is checked automatically; the choice is saved in the browser.
+- **Image generation on Render** – new `IMAGE_PROVIDER=pollinations`: the free pollinations.ai service (no key, no PyTorch). The message box says when a description is sent online. `render.yaml` now uses it.
+
 ## 7.1.1 – Deploy on Render
 
 **Added**

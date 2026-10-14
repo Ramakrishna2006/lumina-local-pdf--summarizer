@@ -45,7 +45,7 @@ Render dashboard → your service → **Settings**:
 | `OPENAI_MODEL` | e.g. `llama-3.1-8b-instant` |
 | `OPENAI_API_KEY` | your key — **typed only in Render, never committed** |
 | `ACCESS_PASSWORD` | a password for the lock screen |
-| `IMAGE_PROVIDER` | `off` |
+| `IMAGE_PROVIDER` | `pollinations` (free online images, no key) |
 | `LLM_WARMUP_ON_STARTUP` | `false` |
 | `OPENAI_EMBEDDING_MODEL` | leave empty (keyword search) |
 

@@ -6,9 +6,25 @@ import Icon from "./components/Icons.jsx";
 import Message from "./components/Message.jsx";
 import SpeedTip from "./components/SpeedTip.jsx";
 import Sidebar from "./components/Sidebar.jsx";
+import ThemePanel from "./components/ThemePanel.jsx";
 import Toasts from "./components/Toasts.jsx";
 import Welcome from "./components/Welcome.jsx";
 import { uid } from "./utils.js";
+import { applyTheme, normalizeTheme, resolvedMode } from "./theme.js";
+
+function clientOs() {
+  const p = (navigator.userAgentData?.platform || navigator.platform || "").toLowerCase();
+  if (p.includes("mac")) return "macos";
+  if (p.includes("linux") || p.includes("android")) return "linux";
+  return "windows";
+}
+
+function initialTheme() {
+  const stored = load("lm.theme2", null);
+  if (stored) return normalizeTheme(stored);
+  const old = load("lm.theme", null); // older versions stored just "light" / "dark"
+  return normalizeTheme({ mode: old === "dark" ? "dark" : "light" });
+}
 
 const DEFAULT_STYLES = [
   { id: "balanced", label: "Balanced" },
@@ -51,10 +67,12 @@ export default function App() {
   const [question, setQuestion] = useState("");
   const [mode, setMode] = useState("ai");
   const [imageEnabled, setImageEnabled] = useState(true);
+  const [imageHosted, setImageHosted] = useState(false);
   useEffect(() => {
     api("/api/images/status")
       .then((st) => {
         setImageEnabled(st.enabled !== false);
+        setImageHosted(Boolean(st.hosted));
         if (st.enabled === false) setMode((m) => (m === "image" ? "ai" : m));
       })
       .catch(() => {});
@@ -77,7 +95,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => load("lm.collapsed", false));
   const [dragging, setDragging] = useState(false);
-  const [theme, setTheme] = useState(() => load("lm.theme", "light"));
+  const [theme, setTheme] = useState(initialTheme);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const [themeWarnings, setThemeWarnings] = useState([]);
 
   const fileInput = useRef(null);
   const inputRef = useRef(null);
@@ -104,8 +124,14 @@ export default function App() {
   useEffect(() => save("lm.motion", motion), [motion]);
   useEffect(() => save("lm.collapsed", collapsed), [collapsed]);
   useEffect(() => {
-    document.documentElement.dataset.theme = theme || "dark";
-    save("lm.theme", theme);
+    // Colours: accent, gradient, custom backgrounds – applied as CSS variables.
+    setThemeWarnings(applyTheme(theme));
+    save("lm.theme2", theme);
+    if (theme.mode !== "system" || !window.matchMedia) return undefined;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => setThemeWarnings(applyTheme(theme));
+    mq.addEventListener?.("change", onChange);
+    return () => mq.removeEventListener?.("change", onChange);
   }, [theme]);
 
   // ---------------------------------------------------------------- loading
@@ -401,7 +427,7 @@ export default function App() {
     setSending(true);
     stickToBottom.current = true;
     const patch = (fields) => setMessages((list) => list.map((m) => (m.id === assistantId ? { ...m, ...fields } : m)));
-    patch({ phase: "painting", startedAt: Date.now() });
+    patch({ phase: "painting", startedAt: Date.now(), hosted: imageHosted });
     try {
       const image = await api("/api/images/generate", { method: "POST", body: { prompt }, signal: controller.signal });
       patch({ streaming: false, image, content: "" });
@@ -446,12 +472,22 @@ export default function App() {
       if (mode === "ai") chat = await ensureChat(text);
       setMessages((list) => [
         ...list,
-        { id: uid("u"), role: "user", content: text },
+        { id: uid("u"), role: "user", content: text, mode },
         { id: assistantId, role: "assistant", content: "", sources: [], streaming: true, phase: "searching", mode },
       ]);
 
       if (mode === "image") {
         await runImage(text, assistantId);
+      } else if (mode === "code") {
+        const history = messages
+          .filter((m) => m.mode === "code" && !m.error && (m.content || "").trim())
+          .slice(-8)
+          .map((m) => ({ role: m.role, content: m.content.slice(0, 8000) }));
+        await runStream({
+          path: "/api/code/stream",
+          body: { question: text, history, model: model || null, language, client_os: clientOs() },
+          assistantId,
+        });
       } else if (mode === "web") {
         await runStream({
           path: "/api/research/stream",
@@ -509,7 +545,7 @@ export default function App() {
         : "Add a document to start"
       : "";
 
-  const isDark = theme !== "light";
+  const isDark = resolvedMode(theme) === "dark";
   const composer = (centered) => (
     <Composer
       centered={centered}
@@ -528,6 +564,7 @@ export default function App() {
       selectedCount={readySelected.length}
       inputRef={inputRef}
       imageEnabled={imageEnabled}
+      imageHosted={imageHosted}
     />
   );
   const speedTip = (
@@ -583,10 +620,12 @@ export default function App() {
             onClick={() => readySelected[0] && setDrawerDocId(readySelected[0].id)}
             title={readySelected.length ? readySelected.map((d) => d.filename).join("\n") + "\n\nClick for summaries" : "Tick documents in the library"}
           >
-            <Icon name={mode === "web" ? "globe" : mode === "image" ? "image" : "doc"} size={14} />
+            <Icon name={mode === "web" ? "globe" : mode === "image" ? "image" : mode === "code" ? "code" : "doc"} size={14} />
             <span className="pill-text">
               {mode === "web"
                 ? "Web search"
+                : mode === "code"
+                  ? "Code"
                 : mode === "image"
                   ? "Image"
                 : readySelected.length === 1
@@ -612,7 +651,7 @@ export default function App() {
               <Icon name="chevron" size={13} />
             </label>
           )}
-          <button type="button" className="ghost-icon theme-btn" onClick={() => setTheme(isDark ? "light" : "dark")} aria-label="Toggle light and dark theme" title="Theme">
+          <button type="button" className="ghost-icon theme-btn" onClick={() => setTheme((t) => ({ ...t, mode: isDark ? "light" : "dark" }))} aria-label="Toggle light and dark theme" title="Theme">
             <Icon name={isDark ? "sun" : "moon"} />
           </button>
           <div className="settings-wrap">
@@ -653,10 +692,13 @@ export default function App() {
                     <span>Animations</span>
                   </label>
                   <label className="switch">
-                    <input type="checkbox" checked={!isDark} onChange={(e) => setTheme(e.target.checked ? "light" : "dark")} />
+                    <input type="checkbox" checked={!isDark} onChange={(e) => setTheme((t) => ({ ...t, mode: e.target.checked ? "light" : "dark" }))} />
                     <span className="switch-track"><span /></span>
                     <span>Light theme</span>
                   </label>
+                  <button type="button" className="mini-btn" onClick={() => { setSettingsOpen(false); setThemeOpen(true); }}>
+                    <Icon name="palette" size={14} /> Change colours…
+                  </button>
                   <p className="popover-note">
                     Engine: <strong>{health?.llm_provider === "openai" ? "OpenAI-compatible server" : "Ollama"}</strong>
                     {defaultModel ? ` · ${defaultModel}` : ""}
@@ -693,7 +735,7 @@ export default function App() {
                     key={m.id || i}
                     message={m}
                     isLast={i === messages.length - 1}
-                    canRegenerate={Boolean(activeChat) && m.mode !== "web" && m.mode !== "image" && !sending}
+                    canRegenerate={Boolean(activeChat) && m.mode !== "web" && m.mode !== "image" && m.mode !== "code" && !sending}
                     onRegenerate={regenerate}
                     onFollowUp={(p) => send(p)}
                     exportHref={activeChat ? downloadUrl(`/api/chats/${activeChat.id}/export`) : null}
@@ -743,6 +785,7 @@ export default function App() {
       )}
 
       <input ref={fileInput} type="file" hidden multiple accept={ACCEPT} onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
+      {themeOpen && <ThemePanel theme={theme} onChange={setTheme} onClose={() => setThemeOpen(false)} warnings={themeWarnings} />}
       <Toasts toasts={toasts} onDismiss={(id) => setToasts((t) => t.filter((x) => x.id !== id))} />
     </div>
   );

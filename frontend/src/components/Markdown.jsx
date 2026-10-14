@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { extensionFor, fileNameFromLine, tokenize } from "../highlight.js";
 
 // A small, dependency-free Markdown renderer.
 // It builds React elements (never innerHTML), so text produced by the model
@@ -33,24 +34,50 @@ function inline(text, keyPrefix = "i") {
   return out;
 }
 
-function CodeBlock({ code, lang }) {
+function downloadText(name, text) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function CodeBlock({ code, lang, filename }) {
   const [copied, setCopied] = useState(false);
+  const [wrap, setWrap] = useState(false);
+  const tokens = useMemo(() => tokenize(code, lang), [code, lang]);
+  const name = filename || `snippet.${extensionFor(lang)}`;
+  const lines = code.split("\n").length;
   return (
-    <div className="md-code">
+    <div className={`md-code ${wrap ? "is-wrapped" : ""}`}>
       <div className="md-code-bar">
-        <span>{lang || "code"}</span>
-        <button
-          type="button"
-          onClick={() => {
-            navigator.clipboard?.writeText(code);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1400);
-          }}
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
+        <span className="md-code-name" title={filename || lang}>{filename || lang || "code"}</span>
+        <span className="md-code-tools">
+          {lines > 12 && (
+            <button type="button" onClick={() => setWrap((w) => !w)} aria-pressed={wrap} title="Wrap long lines">
+              {wrap ? "No wrap" : "Wrap"}
+            </button>
+          )}
+          <button type="button" onClick={() => downloadText(name.split("/").pop(), code + "\n")} title={`Download ${name}`}>
+            Download
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard?.writeText(code);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1400);
+            }}
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </span>
       </div>
-      <pre><code>{code}</code></pre>
+      <pre><code>{tokens.map(([cls, text], i) => (cls ? <span key={i} className={`tk-${cls}`}>{text}</span> : text))}</code></pre>
     </div>
   );
 }
@@ -66,19 +93,25 @@ export default function Markdown({ text = "" }) {
   const blocks = [];
   let i = 0;
   let key = 0;
+  let pendingFile = null;
 
   while (i < lines.length) {
     const line = lines[i];
 
     if (/^```/.test(line)) {
-      const lang = line.slice(3).trim();
+      const info = line.slice(3).trim();
+      const [lang, ...restInfo] = info.split(/[\s:]+/);
+      const titled = restInfo.join(" ").replace(/^title=/, "").replace(/["']/g, "");
       const code = [];
       i++;
       while (i < lines.length && !/^```/.test(lines[i])) code.push(lines[i++]);
       i++;
-      blocks.push(<CodeBlock key={key++} code={code.join("\n")} lang={lang} />);
+      const filename = (/\.[\w]+$/.test(titled) ? titled : null) || pendingFile;
+      pendingFile = null;
+      blocks.push(<CodeBlock key={key++} code={code.join("\n")} lang={lang} filename={filename} />);
       continue;
     }
+    if (line.trim()) pendingFile = fileNameFromLine(line);
 
     const heading = line.match(/^(#{1,4})\s+(.*)$/);
     if (heading) {
@@ -162,6 +195,7 @@ export default function Markdown({ text = "" }) {
     if (para.length === 0) {
       para.push(lines[i++]);
     }
+    pendingFile = fileNameFromLine(para[para.length - 1]);
     blocks.push(<p key={key++}>{inline(para.join(" "), `p${key}`)}</p>);
   }
 

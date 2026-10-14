@@ -30,6 +30,8 @@ Upload PDFs, Word files, slide decks, spreadsheets, code or photos of pages. Ask
 - [Installation (step by step)](#installation-step-by-step)
 - [Running the app](#running-the-app)
 - [The interface](#the-interface)
+- [Code mode](#code-mode)
+- [Change the colours](#change-the-colours)
 - [Image generation – step by step](#image-generation--step-by-step)
 - [How to use it](#how-to-use-it)
 - [Configuration](#configuration)
@@ -326,6 +328,29 @@ The link works only while your PC, Ollama, the backend and the tunnel are runnin
 | **Images** | appear in the chat with their size, time and model, plus **Download** (PNG) and **Another version**. |
 | **Lock screen** | only when `ACCESS_PASSWORD` is set – visitors must enter the password first (it is remembered for 30 days). |
 
+## Code mode
+
+Click **Code** in the message box (Documents · **Code** · Web · Image) – no document needed.
+
+1. Ask for code in any language, e.g. *"Write a Python script that renames all files in a folder"*, or paste an error message to get it fixed.
+2. The answer streams with **coloured (highlighted) code**. Every code block has **Copy** and **Download** (the file name is taken from the answer, e.g. `rename_files.py`).
+3. Ask follow-ups (*"add a dry-run option"*) – Code mode remembers the conversation.
+4. Run commands are given for your system (PowerShell on Windows).
+
+Lumina never runs the code itself – check it before you run it. Longer answers: raise `CODE_MAX_TOKENS` in `.env` (default 1800). For better code locally, try `ollama pull qwen2.5-coder:1.5b` (or `:7b` with 16 GB RAM) and pick it in the model menu.
+
+## Change the colours
+
+⚙ **Settings → Change colours…**
+
+- **Mode:** Light, Dark or System.
+- **Accent colour:** Indigo, Blue, Purple, Green, Teal, Orange, Red, Pink, Yellow – or the rainbow button for any colour.
+- **Gradient:** Aurora, Sunset, Ocean, Forest, Berry (used on buttons).
+- **Your own colours** for the background, sidebar, your messages, AI messages and borders.
+- **Chat spacing:** Comfortable or Compact. **Reset all** returns to the original look.
+
+Changes apply instantly and are saved in your browser. Text colours are adjusted automatically if a combination would be hard to read.
+
 ## Image generation – step by step
 
 Lumina can paint pictures **on your own computer** with **SD-Turbo**, a small Stable Diffusion model that draws a picture in a single step, so it is practical on an ordinary laptop. It is **optional**: Lumina works without it, and you can switch it off with one line.
@@ -417,7 +442,8 @@ Close other heavy programs while painting. The biggest speed-up by far is an NVI
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `IMAGE_PROVIDER` | `local` | `local` = SD-Turbo on this PC · `openai` = an OpenAI-compatible image server (e.g. Ollama image models on macOS) · `off` = Image button removed |
+| `IMAGE_PROVIDER` | `local` | `local` = SD-Turbo on this PC · `pollinations` = free online service, no key (use on Render; your description is sent to pollinations.ai) · `openai` = an OpenAI-compatible image server · `off` = Image button removed |
+| `IMAGE_CLOUD_SIZE` / `IMAGE_CLOUD_MODEL` | `768` / `flux` | only for `pollinations` |
 | `IMAGE_MODEL` | `stabilityai/sd-turbo` | any Hugging Face text-to-image model that `diffusers` can load |
 | `IMAGE_SIZE` / `IMAGE_STEPS` | `384` / `1` | size in pixels (256–1024) and drawing steps (SD-Turbo needs 1) |
 | `IMAGE_FAST_DECODER` / `IMAGE_PRELOAD` | `true` / `true` | tiny fast decoder · load the model at start-up |
@@ -510,8 +536,9 @@ OPENAI_API_KEY=                               # empty for local servers
 Lumina can also run as a website on [Render](https://render.com). The repo includes a
 `Dockerfile` (UI + backend on one port), `render.yaml`, a root `requirements.txt` and
 `.python-version`. Render cannot run Ollama, so the hosted copy uses an online AI
-(`LLM_PROVIDER=openai` + an API key typed only in Render's dashboard), has image mode
-off and should be protected with `ACCESS_PASSWORD`.
+(`LLM_PROVIDER=openai` + an API key typed only in Render's dashboard). Image generation
+works there with `IMAGE_PROVIDER=pollinations` (free online service, no key); the local
+Stable Diffusion model is too big for Render's free plan.
 
 Full steps: **[docs/deploy-render.md](docs/deploy-render.md)**
 
@@ -539,6 +566,7 @@ Interactive docs at http://127.0.0.1:5001/docs.
 | POST | `/api/chats/{id}/messages/stream` | ask in a chat (`question`, `style`, `language`, `model`, `regenerate`) |
 | GET | `/api/chats/{id}/export` | export a chat as Markdown |
 | POST | `/api/research/stream` | web research answer |
+| POST | `/api/code/stream` | Code mode answer (`question`, `history`, `client_os`, `model`) |
 | GET | `/api/images/status` | is Image mode on, are the libraries installed, is the model loaded |
 | POST | `/api/images/generate` | paint an image (`prompt`, optional `size`, `steps`, `seed`) |
 | GET | `/api/images/{id}` | the PNG file |
@@ -625,7 +653,7 @@ Details: [docs/security.md](docs/security.md).
 
 ```bash
 pip install -r backend/requirements-dev.txt
-pytest backend/tests -q                                  # 38 tests · fake Ollama + fake image model – no downloads
+pytest backend/tests -q                                  # 42 tests · fake Ollama + fake image models – no downloads
 ruff check backend --select E,F,W,B --ignore E501,B008   # lint
 python scripts/secret_scan.py                            # before every push
 
